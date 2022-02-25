@@ -150,7 +150,6 @@ class PowerManagementTask : public RunnableTask {
                 delay(10000);                         // Need time to allow voltage to drop
             }
             FDOS_LOG.println();
-
         } else {
             sampleCounter++;
         }
@@ -359,16 +358,56 @@ void radioReceiveInterrupt(void) { radioTask.interruptTriggered(); }
 
 void startRadioActions();
 
-class FlightControlAction : RadioAction, RunnableTask {
+class ControlOutputAction : RadioAction, RunnableTask {
 
     ScheduledLink *cancel = NULL;
 
     bool flightModeActive = false;
+
     inputs_t knownInput;
 
     void run(TIME_INT_t time) {
         inputs_t newInput = inputTask.inputs;
         uint16_t stateChanges = getChangeMap(knownInput, newInput);
+        knownInput = newInput;
+
+        if (flightModeActive) {
+            if (stateChanges && INPUT_CHANGE_MAP::button1) {
+                digitalWrite(BTN1_LED_PIN, LOW);
+                flightModeActive = false;
+                requestSend();
+                return;
+            } else {
+                digitalWrite(BTN1_LED_PIN, HIGH);
+                if (stateChanges & (INPUT_CHANGE_MAP::joyH | INPUT_CHANGE_MAP::joyV | INPUT_CHANGE_MAP::slideH | INPUT_CHANGE_MAP::slideV)) {
+                    requestSend();
+                }
+            }
+        } else {
+            if (stateChanges && INPUT_CHANGE_MAP::button1) {
+                digitalWrite(BTN1_LED_PIN, HIGH);
+                flightModeActive = true;
+                return;
+            } else {
+                digitalWrite(BTN1_LED_PIN, time / 1000 % 10 <= 3);
+            }
+        }
+    }
+
+    uint8_t onSendReady(uint8_t *data) {
+        data[0] = RADIO_MSG_ID::TRANSMIT_CONTROLS;
+        if (flightModeActive) {
+            data[1] = knownInput.joyH;
+            data[2] = knownInput.joyV;
+            data[3] = knownInput.slideH;
+            data[4] = knownInput.slideV;
+        } else {
+            data[1] = 0;
+            data[2] = 0;
+            data[3] = 0;
+            data[4] = 0;
+        }
+        return 5;
     }
 
     void onStart() {
@@ -382,8 +421,9 @@ class FlightControlAction : RadioAction, RunnableTask {
         if (cancel != NULL)
             cancel->cancel();
         cancel = NULL;
+        digitalWrite(BTN1_LED_PIN, LOW);
     }
-};
+}controlOutputAction;
 
 class SustainConnectionAction : RadioAction, RunnableTask {
 
@@ -415,7 +455,7 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     // returns length of data to send
     uint8_t onSendReady(uint8_t *data) {
-        data[0] = HEARTBEAT;
+        data[0] = RADIO_MSG_ID::HEARTBEAT;
         data[1] = powerTask.getBatteryPercent();
         data[2] = radio.getSNR();
         FDOS_LOG.println("Heartbeat sent to receiver");
@@ -492,6 +532,7 @@ class FindReceiverAction : RadioAction, RunnableTask {
             radioTask->removeAction(this);
             sustainConnectionAction.receiverId = receiverId;
             radioTask->addAction((RadioAction *)&sustainConnectionAction);
+            radioTask->addAction((RadioAction *)&controlOutputAction);
             return;
         }
 
@@ -539,6 +580,11 @@ void setup(void) {
     pinMode(BAT_V_SENSE_PIN, INPUT);
     pinMode(POWER_LED_PIN, OUTPUT);
     digitalWrite(POWER_LED_PIN, true);
+
+    pinMode(BTN1_LED_PIN, OUTPUT);
+    pinMode(BTN2_LED_PIN, OUTPUT);
+    pinMode(BTN3_LED_PIN, OUTPUT);
+    pinMode(BTN4_LED_PIN, OUTPUT);
 
     Serial.begin(921600);
 
