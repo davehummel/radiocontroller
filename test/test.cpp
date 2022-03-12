@@ -1,165 +1,151 @@
-
 #include <Arduino.h>
-#include <inttypes.h>
+#include <SPI.h>
+
+#include <RadioLib.h> //Click here to get the library: http://librarymanager/All#RadioLib
 
 #include "FDOS_LOG.h"
 #include "VMExecutor.h"
 #include "VMTime.h"
 
-#define POWER_LED_PIN 13
+#include "RadioTask.h"
 
-#define BAT_V_SENSE_PIN 33
-#define BAT_V_MIN_LVL 540 //(aprox 3.15v)
-
-#define BAT_SENSE_ENABLE_PIN 35
-#define POWER_ENABLE_SENSE_PIN 34
-#define POWER_PRESS_SENSE_LVL 700
-
-#define JOY_BTN_PIN 30
-#define JOY_H_PIN 31
-#define JOY_V_PIN 32
-
-#define MIN_MICRO_REST 10
+SX1276 radio(new Module(RADIO_CS_PIN, RADIO_DIO0_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN));
 
 Logger FDOS_LOG(&Serial);
+
 VMExecutor executor;
 
-class BlinkTask : public RunnableTask {
-    bool flipper = false;
+RadioTask radioTask(&radio);
 
-  public:
-    void run(TIME_INT_t time) {
-        digitalWrite(13, flipper = !flipper);
-        Serial.println(time);
+#define PING_PONG_INITIATOR true
+
+class PinpPongAction : RadioAction, RunnableTask {
+
+    ScheduledLink *cancel = NULL;
+
+    uint8_t count[4] = {0};
+
+    uint32_t actionSeen = 0;
+
+    void onStart() {
+        if (cancel != NULL)
+            cancel->cancel();
+
+        if (PING_PONG_INITIATOR)
+            cancel = executor.schedule((RunnableTask *)this, executor.getTimingPair(1, FrequencyUnitEnum::per_second));
     }
-};
 
-// void pollInputs(int intervalMS) {
-//     pinMode(JOY_BTN_PIN, INPUT_PULLUP);
-//     pinMode(JOY_H_PIN, INPUT);
-//     pinMode(JOY_V_PIN, INPUT);
+    void onStop() {
+        if (cancel != NULL)
+            cancel->cancel();
+        cancel = NULL;
+    }
 
-//     uint16_t printCounter = 0;
-//     while (pollEnabled) {
-//         threads.delay(intervalMS);
-//         bool joyButtonPressed = !digitalRead(JOY_BTN_PIN);
-//         int16_t hPos = analogRead(JOY_H_PIN) - 512;
-//         int16_t vPos = analogRead(JOY_V_PIN) - 512;
+    void onReceive(uint8_t length, uint8_t *data) {
+        if (length < 4) {
+            FDOS_LOG.println("INCOMPLETE data");
+            while (true) {
+                delay(1000);
+            }
+        }
+        if (data[0] != (uint8_t)(count[0] + 1)) {
+            FDOS_LOG.println("BAD data");
+            if (data[0] != count[0] && data[0] != (uint8_t)count[0] - 1) {
+                FDOS_LOG.println("Not even late!");
+                while (true) {
+                    delay(1000);
+                }
+            }
+        }
+        count[0] = data[0];
+        count[1] = data[1];
+        count[2] = data[2];
+        count[3] = data[3];
+        count[0]++;
+        if (count[0] == 0) {
+            count[1]++;
+            if (count[1] == 0) {
+                count[2]++;
+                if (count[2] == 0) {
+                    count[3]++;
+                }
+            }
+        }
+        actionSeen++;
+        requestSend();
+    }
 
-//         if (printCounter == 5) {
-//             Serial.print("***INPUTS*** Joy Btn:");
-//             Serial.print(joyButtonPressed);
-//             Serial.print(" Joy H:");
-//             Serial.print(hPos);
-//             Serial.print(" Joy V:");
-//             Serial.println(vPos);
-//             printCounter = 0;
-//         } else {
-//             printCounter++;
-//         }
+    // returns length of data to send
+    uint8_t onSendReady(uint8_t *data) {
+        data[0] = count[0];
+        data[1] = count[1];
+        data[2] = count[2];
+        data[3] = count[3];
+        return 4;
+    }
 
-//         digitalWrite(POWER_LED_PIN, joyButtonPressed);
-//     }
-// }
+    bool blink = false;
+    void run(TIME_INT_t time) {
+        if (actionSeen == 0) {
+            FDOS_LOG.print("Forcing send due to no action.  transmitting=");
+            FDOS_LOG.println(requestSend());
+        } else {
+            FDOS_LOG.print(actionSeen);
+            FDOS_LOG.println(" actions per second");
+        }
+        actionSeen = 0;
+        digitalWrite(LED_PIN, blink = !blink);
+    }
+} findReceiver;
 
-// void managePower(int intervalMS) {
+void radioInterrupt(void) { radioTask.interruptTriggered(); }
 
-//     pinMode(BAT_SENSE_ENABLE_PIN, OUTPUT);
+void startRadioActions() { radioTask.addAction((RadioAction *)&findReceiver); }
 
-//     int16_t sampleCounter = -1; // First sample cycle needs to run one
-//                                 // extra to fill in the sliding average
-//     boolean powerInitallyReleased = false;
-//     uint32_t batteryVSense = 0;
+void setup(void) {
 
-//     while (sampleEnabled) {
-//         threads.delay(intervalMS);
-
-//         digitalWrite(BAT_SENSE_ENABLE_PIN, HIGH);
-
-//         batteryVSense += analogRead(BAT_V_SENSE_PIN);
-
-//         digitalWrite(BAT_SENSE_ENABLE_PIN, LOW);
-
-//         pinMode(POWER_ENABLE_SENSE_PIN, INPUT_PULLUP);
-//         delayMicroseconds(1);
-//         bool powerPressed =
-//             analogRead(POWER_ENABLE_SENSE_PIN) > POWER_PRESS_SENSE_LVL;
-//         pinMode(POWER_ENABLE_SENSE_PIN, OUTPUT);
-//         pinMode(POWER_ENABLE_SENSE_PIN, HIGH); // Keep on
-//         if (!powerPressed && !powerInitallyReleased)
-//             powerInitallyReleased = true;
-//         if (powerPressed && powerInitallyReleased) {
-//             delay(200); // Verify its held down for 200 ms longer,
-//                         // filter out accidental bumps
-//             pinMode(POWER_ENABLE_SENSE_PIN, INPUT_PULLUP);
-//             delayMicroseconds(1);
-//             powerPressed =
-//                 analogRead(POWER_ENABLE_SENSE_PIN) > POWER_PRESS_SENSE_LVL;
-//             if (powerPressed) {
-//                 pinMode(POWER_ENABLE_SENSE_PIN, OUTPUT);
-//                 pinMode(POWER_ENABLE_SENSE_PIN, LOW); // Turn off
-//                 return;
-//             } else {
-//                 pinMode(POWER_ENABLE_SENSE_PIN,
-//                         OUTPUT); // Keep on & ignore press
-//                 pinMode(POWER_ENABLE_SENSE_PIN, HIGH);
-//             }
-//         }
-//         if (sampleCounter == 9) {
-//             batteryVSense /= 11; // double readings and 1 of 5 record is the
-//                                  // rolling average from previous reading
-//             Serial.print("***POWER*** Bat V:");
-//             Serial.print(batteryVSense);
-//             Serial.print(" Pwr Btn:");
-//             Serial.println(powerPressed);
-//             sampleCounter = 0;
-
-//             if (batteryVSense < BAT_V_MIN_LVL) {
-//                 Serial.print("***WARNING*** Bat V:");
-//                 Serial.print(batteryVSense);
-//                 Serial.print(" Turning Off");
-
-//                 for (int i = 0; i < 10; i++) {
-//                     digitalWrite(13, HIGH);
-//                     delay(50);
-//                     digitalWrite(13, LOW);
-//                     delay(150);
-//                 }
-//                 pinMode(POWER_ENABLE_SENSE_PIN, OUTPUT);
-//                 pinMode(POWER_ENABLE_SENSE_PIN, LOW); // Turn off
-//                 return;
-//             }
-
-//         } else {
-//             sampleCounter++;
-//         }
-//     }
-// }
-
-BlinkTask blinkTask;
-
-void setup() {
-    // This must run ASAP to keep system on after power button is
+    SPI.setSCK(SPI_CLK_PIN);
+    // PowerEnable pin must be enabled ASAP to keep system on after power is
     // released
-    pinMode(POWER_ENABLE_SENSE_PIN, OUTPUT);
-    digitalWrite(POWER_ENABLE_SENSE_PIN, HIGH); // Power Enable
-    pinMode(POWER_LED_PIN, OUTPUT);
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, true);
 
-    Serial.begin(115200);
-    timing_pair pair;
-    pair = executor.getTimingPair(1, FrequencyUnitEnum::second);
+    Serial.begin(921600);
 
-    executor.schedule((RunnableTask *)&blinkTask, pair);
+    delay(5000);
 
-    pair.offsetMicros = (TIME_INT_t)50000ll;
+    FDOS_LOG.println("Radio Starting ...");
 
-    executor.schedule((RunnableTask *)&blinkTask, pair);
+    int state = radio.begin(RADIO_CARRIER_FREQ, RADIO_LINK_BANDWIDTH, RADIO_SPREADING_FACTOR); //-23dBm
+    if (state == RADIOLIB_ERR_NONE) {
+        FDOS_LOG.println("success!");
+    } else {
+        FDOS_LOG.print("SX1276 failed. Code:");
+        FDOS_LOG.println(state);
+    }
+    // set output power to 10 dBm (accepted range is -3 - 17 dBm)
+    // NOTE: 20 dBm value allows high power operation, but transmission
+    //       duty cycle MUST NOT exceed 1%
+    if (radio.setOutputPower(RADIO_POWER) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
+        FDOS_LOG.println("Invalid Power!");
+    }
+
+    radio.setRfSwitchPins(RADIO_RX_EN_PIN, RADIO_TX_EN_PIN);
+
+    radio.setDio0Action(radioInterrupt);
+
+    executor.schedule((RunnableTask *)&radioTask, executor.getTimingPair(RADIO_INTERVAL_MILLIS, FrequencyUnitEnum::milli));
+
+    startRadioActions();
 }
 
-void loop() {
+void loop(void) {
     uint32_t delayTime = executor.runSchedule();
-    if (delayTime > 10000)
-        delayTime = 10000;
-    if (delayTime > MIN_MICRO_REST)
+    // You may want to allow the loop to finish and avoid long delays
+    //    if you are using background arduino features
+    // if (delayTime > 100000)
+    //     delayTime = 100000;
+    if (delayTime > MIN_MICRO_REST) {
         delayMicroseconds(delayTime - MIN_MICRO_REST);
+    }
 }

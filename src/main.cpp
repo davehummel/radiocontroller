@@ -12,27 +12,14 @@
 #include "VMExecutor.h"
 #include "VMTime.h"
 
+#include "FlightMessages.h"
 #include "RadioTask.h"
 
-#define SPI_CLK_PIN 27
-#define SPI_MOSI_PIN 11
-#define TFT_CS_PIN 10 // CS & DC can use pins 2, 6, 9, 10, 15, 20, 21, 22, 23
-#define TFT_DC_PIN 2
-//  but certain pairs must NOT be used: 2+10, 6+9, 20+23, 21+22
-#define TFT_RST_PIN 4
-#define TFT_PWM_PIN 3
 Adafruit_ST7789 tft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
 
-#define RADIO_CS_PIN 9
-#define RADIO_DIO0_PIN 26
-#define RADIO_DIO1_PIN 28
-#define RADIO_RST_PIN 29
-#define RADIO_TX_EN_PIN 24
-#define RADIO_RX_EN_PIN 25
 SX1276 radio(new Module(RADIO_CS_PIN, RADIO_DIO0_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN));
 
-#define POWER_LED_PIN 13
-
+// TODO move these to platform.ini
 #define BAT_V_SENSE_PIN 33
 #define BAT_V_MIN_LVL 3.1
 
@@ -46,16 +33,6 @@ SX1276 radio(new Module(RADIO_CS_PIN, RADIO_DIO0_PIN, RADIO_RST_PIN, RADIO_DIO1_
 
 #define H_SLIDER_PIN 23
 #define V_SLIDER_PIN 22
-
-#define BTN1_LED_PIN 5
-#define BTN2_LED_PIN 6
-#define BTN3_LED_PIN 7
-#define BTN4_LED_PIN 8
-
-#define BTN1_PRESS_PIN 17
-#define BTN2_PRESS_PIN 16
-#define BTN3_PRESS_PIN 15
-#define BTN4_PRESS_PIN 14
 
 #define TOGGLE1_PIN 36
 #define TOGGLE2_PIN 21
@@ -77,9 +54,9 @@ class PowerManagementTask : public RunnableTask {
   public:
     void bootFailed(uint16_t msOff, uint16_t msOn) {
         while (true) {
-            digitalWrite(POWER_LED_PIN, HIGH);
+            digitalWrite(LED_PIN, HIGH);
             delay(msOn);
-            digitalWrite(POWER_LED_PIN, LOW);
+            digitalWrite(LED_PIN, LOW);
             delay(msOff);
             testPowerPress();
         }
@@ -103,7 +80,7 @@ class PowerManagementTask : public RunnableTask {
             powerPressed = analogRead(POWER_ENABLE_SENSE_PIN) > POWER_PRESS_SENSE_LVL;
             if (powerPressed) {
                 FDOS_LOG.println("Turning off");
-                digitalWrite(POWER_LED_PIN, LOW);
+                digitalWrite(LED_PIN, LOW);
                 pinMode(POWER_ENABLE_SENSE_PIN, OUTPUT);
                 pinMode(POWER_ENABLE_SENSE_PIN, LOW); // Turn off
                 delay(10000);                         // Need time to allow voltage to drop
@@ -133,16 +110,16 @@ class PowerManagementTask : public RunnableTask {
             FDOS_LOG.print(bat_v);
             sampleCounter = 0;
             batteryPercent = 100 * (1 - (4.2 - bat_v) / (4.2 - BAT_V_MIN_LVL));
-            ui.renderTxBattery(batteryPercent);
+            ui.renderCTBattery(batteryPercent);
             if (bat_v < 2.0) { // Assume we are running on external power
                 FDOS_LOG.print(" WARNING - Assuming on external power.");
             } else if (bat_v < BAT_V_MIN_LVL) {
                 FDOS_LOG.print("WARNING - Bat V low, turning off!");
 
                 for (int i = 0; i < 10; i++) {
-                    digitalWrite(POWER_LED_PIN, HIGH);
+                    digitalWrite(LED_PIN, HIGH);
                     delay(50);
-                    digitalWrite(POWER_LED_PIN, LOW);
+                    digitalWrite(LED_PIN, LOW);
                     delay(150);
                 }
                 pinMode(POWER_ENABLE_SENSE_PIN, OUTPUT);
@@ -192,26 +169,37 @@ enum INPUT_CHANGE_MAP {
     slideH = 1 << 4,
     toggle1 = 1 << 5,
     toggle2 = 1 << 6,
-    joyButton = 1 << 7,
-    button1 = 1 << 8,
-    button2 = 1 << 9,
-    button3 = 1 << 10,
-    button4 = 1 << 11
+    joyButtonDown = 1 << 7,
+    button1Down = 1 << 8,
+    button2Down = 1 << 9,
+    button3Down = 1 << 10,
+    button4Down = 1 << 11,
+    joyButtonUp = 1 << 12,
+    button1Up = 1 << 13,
+    button2Up = 1 << 14,
+    button3Up = 1 << 15,
+    button4Up = 1 << 16
 };
 
-uint16_t getChangeMap(inputs_t &prev, inputs_t &next) {
+uint32_t getChangeMap(inputs_t &prev, inputs_t &next) {
     uint16_t map = 0;
-    map |= (prev.joyH != next.joyH) * INPUT_CHANGE_MAP::joyH;
-    map |= (prev.joyV != next.joyV) * INPUT_CHANGE_MAP::joyV;
-    map |= (prev.slideV != next.slideV) * INPUT_CHANGE_MAP::slideV;
+    map |= (abs(prev.joyH - next.joyH) >= 2) * INPUT_CHANGE_MAP::joyH;
+    map |= (abs(prev.joyV - next.joyV) >= 2) * INPUT_CHANGE_MAP::joyV;
+    map |= (abs(prev.slideV - next.slideV) >= 2) * INPUT_CHANGE_MAP::slideV;
     map |= (prev.slideH != next.slideH) * INPUT_CHANGE_MAP::slideH;
     map |= (prev.toggle1 != next.toggle1) * INPUT_CHANGE_MAP::toggle1;
     map |= (prev.toggle2 != next.toggle2) * INPUT_CHANGE_MAP::toggle2;
-    map |= (prev.joyButton != next.joyButton) * INPUT_CHANGE_MAP::joyButton;
-    map |= (prev.button1 != next.button1) * INPUT_CHANGE_MAP::button1;
-    map |= (prev.button2 != next.button2) * INPUT_CHANGE_MAP::button2;
-    map |= (prev.button3 != next.button3) * INPUT_CHANGE_MAP::button3;
-    map |= (prev.button4 != next.button4) * INPUT_CHANGE_MAP::button4;
+    map |= (prev.lastJoyButtonPressTime != next.lastJoyButtonPressTime) * INPUT_CHANGE_MAP::joyButtonDown;
+    map |= (prev.lastButton1PressTime != next.lastButton1PressTime) * INPUT_CHANGE_MAP::button1Down;
+    map |= (prev.lastButton2PressTime != next.lastButton2PressTime) * INPUT_CHANGE_MAP::button2Down;
+    map |= (prev.lastButton3PressTime != next.lastButton3PressTime) * INPUT_CHANGE_MAP::button3Down;
+    map |= (prev.lastButton4PressTime != next.lastButton4PressTime) * INPUT_CHANGE_MAP::button4Down;
+    map |= (prev.lastJoyButtonReleaseTime != next.lastJoyButtonReleaseTime) * INPUT_CHANGE_MAP::joyButtonDown;
+    map |= (prev.lastButton1ReleaseTime != next.lastButton1ReleaseTime) * INPUT_CHANGE_MAP::button1Up;
+    map |= (prev.lastButton2ReleaseTime != next.lastButton2ReleaseTime) * INPUT_CHANGE_MAP::button2Up;
+    map |= (prev.lastButton3ReleaseTime != next.lastButton3ReleaseTime) * INPUT_CHANGE_MAP::button3Up;
+    map |= (prev.lastButton4ReleaseTime != next.lastButton4ReleaseTime) * INPUT_CHANGE_MAP::button4Up;
+    return map;
 }
 
 class InputTask : public RunnableTask {
@@ -230,6 +218,9 @@ class InputTask : public RunnableTask {
     int16_t slideV_offset = 0;
     int16_t slideH_range = 1023;
     int16_t slideV_range = 1023;
+
+    uint8_t slideVSamples[4] = {0};
+    uint8_t slideVSampleID = 0;
 
     inputs_t inputs;
 
@@ -294,10 +285,8 @@ class InputTask : public RunnableTask {
         int32_t joyVRaw = analogRead(JOY_V_PIN) + joyV_offset;
 
         pinMode(H_SLIDER_PIN, INPUT_PULLDOWN);
-        delayMicroseconds(1);
         int32_t sliderHRaw1 = analogRead(H_SLIDER_PIN);
         pinMode(H_SLIDER_PIN, INPUT_PULLUP);
-        delayMicroseconds(1);
         int32_t sliderHRaw2 = analogRead(H_SLIDER_PIN);
 
         int32_t sliderHRaw;
@@ -348,13 +337,40 @@ class InputTask : public RunnableTask {
 
 } inputTask;
 
-void beginReceive(void) { radio.startReceive(); }
+class DisplayBrightnessTask : public RunnableTask {
 
-RadioTask radioTask((PhysicalLayer *)&radio, 50000ULL, beginReceive);
+    uint8_t prevState = 4;
 
-void radioSendInterrupt(void) { radioTask.interruptTriggered(); }
+    void run(TIME_INT_t time) {
+        uint8_t newState = inputTask.inputs.toggle2;
+        if (newState != prevState) {
+            switch (newState) {
+            case 0:
+                analogWrite(TFT_PWM_PIN, 0);
+                tft.enableSleep(true);
 
-void radioReceiveInterrupt(void) { radioTask.interruptTriggered(); }
+                break;
+            case 1:
+                analogWrite(TFT_PWM_PIN, 200);
+                tft.enableSleep(false);
+                break;
+            case 2:
+                analogWrite(TFT_PWM_PIN, 1024);
+                tft.enableSleep(false);
+                break;
+            }
+            prevState = newState;
+        }
+    }
+} displayBrightnessTask;
+
+// Radio
+
+void startReceive(void) { radio.startReceive(); }
+
+RadioTask radioTask(&radio);
+
+void radioInterrupt(void) { radioTask.interruptTriggered(); }
 
 void startRadioActions();
 
@@ -366,35 +382,41 @@ class ControlOutputAction : RadioAction, RunnableTask {
 
     inputs_t knownInput;
 
+    bool blink = false;
+
     void run(TIME_INT_t time) {
         inputs_t newInput = inputTask.inputs;
         uint16_t stateChanges = getChangeMap(knownInput, newInput);
         knownInput = newInput;
 
         if (flightModeActive) {
-            if (stateChanges && INPUT_CHANGE_MAP::button1) {
-                digitalWrite(BTN1_LED_PIN, LOW);
+
+            if (stateChanges & INPUT_CHANGE_MAP::button1Down) {
+                FDOS_LOG.println("Leaving Flight Mode");
+                analogWrite(BTN1_LED_PIN, 0);
                 flightModeActive = false;
                 requestSend();
-                return;
             } else {
-                digitalWrite(BTN1_LED_PIN, HIGH);
+                analogWrite(BTN1_LED_PIN, 200);
                 if (stateChanges & (INPUT_CHANGE_MAP::joyH | INPUT_CHANGE_MAP::joyV | INPUT_CHANGE_MAP::slideH | INPUT_CHANGE_MAP::slideV)) {
                     requestSend();
                 }
             }
+
         } else {
-            if (stateChanges && INPUT_CHANGE_MAP::button1) {
-                digitalWrite(BTN1_LED_PIN, HIGH);
+
+            if (stateChanges & INPUT_CHANGE_MAP::button1Down) {
+                FDOS_LOG.println("Starting Flight Mode");
+                analogWrite(BTN1_LED_PIN, 1023);
                 flightModeActive = true;
-                return;
             } else {
-                digitalWrite(BTN1_LED_PIN, time / 1000 % 10 <= 3);
+                analogWrite(BTN1_LED_PIN, 1023 * (((time / 100000) % 10) < 2));
             }
         }
     }
 
     uint8_t onSendReady(uint8_t *data) {
+        FDOS_LOG.printf("Transmitting Controls JH:%i JV:%i SH:%i SV:%i\n", knownInput.joyH, knownInput.joyV, knownInput.slideH, knownInput.slideV);
         data[0] = RADIO_MSG_ID::TRANSMIT_CONTROLS;
         if (flightModeActive) {
             data[1] = knownInput.joyH;
@@ -411,10 +433,11 @@ class ControlOutputAction : RadioAction, RunnableTask {
     }
 
     void onStart() {
+        flightModeActive = false;
         knownInput = inputTask.inputs;
         if (cancel != NULL)
             cancel->cancel();
-        cancel = executor.schedule((RunnableTask *)this, executor.getTimingPair(MAX_TRANSMIT_PER_SECOND, FrequencyUnitEnum::second));
+        cancel = executor.schedule((RunnableTask *)this, executor.getTimingPair(MAX_TRANSMIT_PER_SECOND, FrequencyUnitEnum::per_second));
     }
 
     void onStop() {
@@ -423,28 +446,31 @@ class ControlOutputAction : RadioAction, RunnableTask {
         cancel = NULL;
         digitalWrite(BTN1_LED_PIN, LOW);
     }
-}controlOutputAction;
+} controlOutputAction;
 
 class SustainConnectionAction : RadioAction, RunnableTask {
 
     uint8_t missedHBCount = 0;
 
-    uint8_t rxBat = 255;
+    fc_heartbeat_t lastFCHB;
+    ct_heartbeat_t lastCTHB;
 
     ScheduledLink *cancel = NULL;
 
     void onReceive(uint8_t length, uint8_t *data) {
-        if (data[0] == HEARTBEAT) {
-            FDOS_LOG.println("Heartbeat received from receiver");
-            rxBat = data[1];
-            int8_t rxSNR = data[2];
-            int16_t txSNR = radio.getSNR();
+        if (data[0] == FC_HEARTBEAT) {
+            FDOS_LOG.println("Heartbeat received from flight computer");
+            msgFromBytes(lastFCHB, data + 1);
+            lastFCHB.print((Print*)&FDOS_LOG);
 
-            radioTask->getUI()->renderRxBattery(rxBat);
-            radioTask->getUI()->renderRadioState(2, rxSNR, txSNR);
+            int8_t fcSNR = lastFCHB.snr;
+            int8_t ctSNR = radio.getSNR() * 10;
 
-            FDOS_LOG.printf("Radio Stats - rxBat %i, rxSNR %i, txSNR %i", rxBat, rxSNR, txSNR);
-            missedHBCount--;
+            radioTask->getUI()->renderFCBattery(lastFCHB.batV);
+            radioTask->getUI()->renderRadioState(2, fcSNR, ctSNR);
+
+            FDOS_LOG.printf("Radio Stats - rxBat %i, rxSNR %i, txSNR %i\n", lastFCHB.batV, fcSNR, ctSNR);
+            missedHBCount=0;
             return;
         }
         if (data[0] == RADIO_MSG_ID::RECEIVER_BEACON) {
@@ -455,16 +481,17 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     // returns length of data to send
     uint8_t onSendReady(uint8_t *data) {
-        data[0] = RADIO_MSG_ID::HEARTBEAT;
-        data[1] = powerTask.getBatteryPercent();
-        data[2] = radio.getSNR();
-        FDOS_LOG.println("Heartbeat sent to receiver");
+
+        lastCTHB.batV = powerTask.getBatteryPercent();
+        lastCTHB.snr = radio.getSNR() * 10;
+        data[0] = RADIO_MSG_ID::CT_HEARTBEAT;
+        msgToBytes(lastCTHB, data + 1);
         return 3;
     }
 
     void run(TIME_INT_t time) {
-        if (missedHBCount > 5) {
-            FDOS_LOG.println("DISCONNECTING RECEIVER - No heartbeat in 6 cycles");
+        if (missedHBCount > 2) {
+            FDOS_LOG.println("DISCONNECTING RECEIVER - No heartbeat in 2 cycles");
             radioTask->removeAllActions();
 
             startRadioActions();
@@ -491,7 +518,7 @@ class SustainConnectionAction : RadioAction, RunnableTask {
     }
 
     void onStop() {
-        rxBat = 255;
+        lastFCHB.batV = 255;
         if (cancel != NULL)
             cancel->cancel();
         cancel = NULL;
@@ -500,7 +527,7 @@ class SustainConnectionAction : RadioAction, RunnableTask {
   public:
     uint8_t receiverId = 0;
 
-    uint8_t getReceiverBattery() { return rxBat; }
+    uint8_t getReceiverBattery() { return lastFCHB.batV; }
 
 } sustainConnectionAction;
 
@@ -513,7 +540,7 @@ class FindReceiverAction : RadioAction, RunnableTask {
 
     void onStart() {
         radioTask->getUI()->renderRadioState(0, 0, 0);
-        radioTask->getUI()->renderRxBattery(255);
+        radioTask->getUI()->renderFCBattery(255);
         if (cancel != NULL)
             cancel->cancel();
 
@@ -578,8 +605,11 @@ void setup(void) {
     digitalWrite(POWER_ENABLE_SENSE_PIN, HIGH); // Power Enable
     pinMode(BAT_SENSE_ENABLE_PIN, OUTPUT);
     pinMode(BAT_V_SENSE_PIN, INPUT);
-    pinMode(POWER_LED_PIN, OUTPUT);
-    digitalWrite(POWER_LED_PIN, true);
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, true);
+
+    pinMode(TFT_PWM_PIN, OUTPUT);
+    analogWrite(TFT_PWM_PIN, 200);
 
     pinMode(BTN1_LED_PIN, OUTPUT);
     pinMode(BTN2_LED_PIN, OUTPUT);
@@ -587,8 +617,10 @@ void setup(void) {
     pinMode(BTN4_LED_PIN, OUTPUT);
 
     Serial.begin(921600);
+    delay(300);
 
     tft.init(240, 240);
+
     tft.setRotation(1);
     tft.fillScreen(ST77XX_WHITE);
     tft.setTextColor(ST77XX_BLACK);
@@ -601,52 +633,61 @@ void setup(void) {
     ui.setDisplay(&tft);
 
     tft.println("[SX1276] Initializing ...");
-    int state = radio.begin(910.0, 500); //-23dBm
+    FDOS_LOG.println("[SX1276] Initializing ...");
+    int state = radio.begin(RADIO_CARRIER_FREQ, RADIO_LINK_BANDWIDTH, RADIO_SPREADING_FACTOR); //-23dBm
+
     if (state == RADIOLIB_ERR_NONE) {
+        FDOS_LOG.println("success!");
         tft.println("success!");
     } else {
         tft.print("SX1276 failed. Code:");
         tft.println(state);
+        FDOS_LOG.print("SX1276 failed. Code:");
+        FDOS_LOG.println(state);
         powerTask.bootFailed(200, 50);
     }
     // set output power to 10 dBm (accepted range is -3 - 17 dBm)
     // NOTE: 20 dBm value allows high power operation, but transmission
     //       duty cycle MUST NOT exceed 1%
-    if (radio.setOutputPower(17) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
+    if (radio.setOutputPower(RADIO_POWER) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
         tft.println("Invalid Power!");
+        FDOS_LOG.println("Invalid Power!");
         powerTask.bootFailed(50, 200);
     }
     radio.setRfSwitchPins(RADIO_RX_EN_PIN, RADIO_TX_EN_PIN);
 
-    radio.setDio0Action(radioReceiveInterrupt);
-    radio.setDio1Action(radioSendInterrupt);
-
-    tft.println("Radio init success");
+    radio.setDio0Action(radioInterrupt);
 
     analogReadResolution(10);
     analogWriteResolution(10);
 
     tft.println("Init success");
+    FDOS_LOG.println("Init success");
+
+    delay(1000);
+
+    executor.schedule((RunnableTask *)&displayBrightnessTask, 500000, 1000000);
 
     executor.schedule((RunnableTask *)&powerTask, executor.getTimingPair(5, FrequencyUnitEnum::per_second));
 
     executor.schedule((RunnableTask *)&inputTask, executor.getTimingPair(40, FrequencyUnitEnum::per_second));
 
-    executor.schedule((RunnableTask *)&radioTask, executor.getTimingPair(1, FrequencyUnitEnum::second));
+    executor.schedule((RunnableTask *)&radioTask, executor.getTimingPair(RADIO_INTERVAL_MILLIS, FrequencyUnitEnum::milli));
 
     ui.renderBackground();
 
     radioTask.setUI((RadioUI *)&ui);
-    startRadioActions();
 
-    pinMode(TFT_PWM_PIN, OUTPUT);
-    analogWrite(TFT_PWM_PIN, 100);
+    startRadioActions();
 }
 
 void loop(void) {
     uint32_t delayTime = executor.runSchedule();
-    if (delayTime > 10000)
-        delayTime = 10000;
-    if (delayTime > MIN_MICRO_REST)
+    // You may want to allow the loop to finish and avoid long delays
+    //    if you are using background arduino features
+    // if (delayTime > 100000)
+    //     delayTime = 100000;
+    if (delayTime > MIN_MICRO_REST) {
         delayMicroseconds(delayTime - MIN_MICRO_REST);
+    }
 }

@@ -30,11 +30,11 @@ class RemoteUI:RadioUI {
 
     void setRadioStateLocation(uint16_t x, uint16_t y);
 
-    void renderTxBattery(uint8_t txLevel);
+    void renderCTBattery(uint8_t ctLevel);
 
-    void renderRxBattery(uint8_t rxLevel);
+    void renderFCBattery(uint8_t fcLevel);
 
-    void renderRadioState(uint8_t state, int8_t rxSNR, int8_t txSNR );
+    void renderRadioState(uint8_t state, int8_t fcSNR, int8_t ctSNR );
 };
 
 #endif

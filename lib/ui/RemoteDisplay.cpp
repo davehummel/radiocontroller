@@ -39,33 +39,33 @@ void RemoteUI::setRadioStateLocation(uint16_t x, uint16_t y) {
     receiverProperties.y = y;
 }
 
-void RemoteUI::renderTxBattery(uint8_t txLevel) {
-    display->fillRect(batteryProperties.x + 26, batteryProperties.y + 33, 22, -16, txLevel < 20 ? LOWBAT_BACKGROUND : BACKGROUND);
+void RemoteUI::renderCTBattery(uint8_t ctLevel) {
+    display->fillRect(batteryProperties.x + 26, batteryProperties.y + 33, 22, -16, ctLevel < 20 ? LOWBAT_BACKGROUND : BACKGROUND);
     display->setTextColor(RGB(0, 0, 0));
     display->setCursor(batteryProperties.x + 26, batteryProperties.y + 32);
-    if (txLevel == 255) {
+    if (ctLevel == 255) {
         display->print(" --");
     } else {
-        if (txLevel > 99) {
-            txLevel = 99;
+        if (ctLevel > 99) {
+            ctLevel = 99;
         }
         display->setFont(&FreeSansBold9pt7b);
-        display->print(txLevel);
+        display->print(ctLevel);
     }
 }
 
-void RemoteUI::renderRxBattery(uint8_t rxLevel) {
-    display->fillRect(batteryProperties.x + 26, batteryProperties.y + 49, 22, -16, rxLevel < 20 ? LOWBAT_BACKGROUND : BACKGROUND);
+void RemoteUI::renderFCBattery(uint8_t fcLevel) {
+    display->fillRect(batteryProperties.x + 26, batteryProperties.y + 49, 22, -16, fcLevel < 20 ? LOWBAT_BACKGROUND : BACKGROUND);
     display->setTextColor(RGB(0, 0, 0));
     display->setCursor(batteryProperties.x + 26, batteryProperties.y + 48);
-    if (rxLevel == 255) {
+    if (fcLevel == 255) {
         display->print(" --");
     } else {
-        if (rxLevel > 99) {
-            rxLevel = 99;
+        if (fcLevel > 99) {
+            fcLevel = 99;
         }
         display->setFont(&FreeSansBold9pt7b);
-        display->print(rxLevel);
+        display->print(fcLevel);
     }
 }
 
@@ -98,11 +98,11 @@ void RemoteUI::renderRadioState(uint8_t state, int8_t rxSNR, int8_t txSNR) {
             display->setFont(&FreeSans9pt7b);
             display->print("CT:");
             display->setFont(&FreeSansBold9pt7b);
-            display->print(rxSNR);
+            display->print(txSNR);
             display->setFont(&FreeSans9pt7b);
             display->print("dB  FC:");
             display->setFont(&FreeSansBold9pt7b);
-            display->print(txSNR);
+            display->print(rxSNR);
             display->setFont(&FreeSans9pt7b);
             display->print("dB");
         }
