@@ -4,8 +4,8 @@
 
 #include <RadioLib.h> //Click here to get the library: http://librarymanager/All#RadioLib
 
-#include <Adafruit_GFX.h>    // Core graphics library
-#include <Adafruit_ST7789.h> // Hardware-specific library
+// #include <Adafruit_GFX.h>    // Core graphics library
+// #include <Adafruit_ST7789.h> // Hardware-specific library
 
 #include "FDOS_LOG.h"
 #include "RemoteDisplay.h"
@@ -15,7 +15,7 @@
 #include "FlightMessages.h"
 #include "RadioTask.h"
 
-Adafruit_ST7789 tft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
+// Adafruit_ST7789 tft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
 
 SX1276 radio(new Module(RADIO_CS_PIN, RADIO_DIO0_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN));
 
@@ -183,9 +183,9 @@ enum INPUT_CHANGE_MAP {
 
 uint32_t getChangeMap(inputs_t &prev, inputs_t &next) {
     uint16_t map = 0;
-    map |= (abs(prev.joyH - next.joyH) >= 2) * INPUT_CHANGE_MAP::joyH;
-    map |= (abs(prev.joyV - next.joyV) >= 2) * INPUT_CHANGE_MAP::joyV;
-    map |= (abs(prev.slideV - next.slideV) >= 2) * INPUT_CHANGE_MAP::slideV;
+    map |= (next.joyH == 0 && prev.joyH != 0) || (abs(prev.joyH - next.joyH) >= 2) * INPUT_CHANGE_MAP::joyH;
+    map |= (next.joyV == 0 && prev.joyV != 0) || (abs(prev.joyV - next.joyV) >= 2) * INPUT_CHANGE_MAP::joyV;
+    map |= (next.slideV == 0 && prev.slideV != 0) || (abs(prev.slideV - next.slideV) >= 2) * INPUT_CHANGE_MAP::slideV;
     map |= (prev.slideH != next.slideH) * INPUT_CHANGE_MAP::slideH;
     map |= (prev.toggle1 != next.toggle1) * INPUT_CHANGE_MAP::toggle1;
     map |= (prev.toggle2 != next.toggle2) * INPUT_CHANGE_MAP::toggle2;
@@ -209,8 +209,8 @@ class InputTask : public RunnableTask {
   public:
     int16_t joyH_offset = -481;
     int16_t joyV_offset = -516;
-    int16_t joyH_deadzone = 8;  //+-
-    int16_t joyV_deadzone = 18; // +-
+    int16_t joyH_deadzone = 20; //+-
+    int16_t joyV_deadzone = 20; // +-
     int16_t joyH_range = 450;
     int16_t joyV_range = 450;
 
@@ -331,8 +331,11 @@ class InputTask : public RunnableTask {
     }
 
     void printInputs() {
+
+#ifdef INPUT_TRACKING
         FDOS_LOG.printf("Btns J:%i 1:%i 2:%i 3:%i 4:%i Joy v:%i h:%i Sld v:%i h:%i Sw 1:%i 2:%i\n", inputs.joyButton, inputs.button1, inputs.button2,
                         inputs.button3, inputs.button4, inputs.joyV, inputs.joyH, inputs.slideV, inputs.slideH, inputs.toggle1, inputs.toggle2);
+#endif
     }
 
 } inputTask;
@@ -347,16 +350,16 @@ class DisplayBrightnessTask : public RunnableTask {
             switch (newState) {
             case 0:
                 analogWrite(TFT_PWM_PIN, 0);
-                tft.enableSleep(true);
+                // tft.enableSleep(true);
 
                 break;
             case 1:
                 analogWrite(TFT_PWM_PIN, 200);
-                tft.enableSleep(false);
+                // tft.enableSleep(false);
                 break;
             case 2:
                 analogWrite(TFT_PWM_PIN, 1024);
-                tft.enableSleep(false);
+                // tft.enableSleep(false);
                 break;
             }
             prevState = newState;
@@ -374,62 +377,145 @@ void radioInterrupt(void) { radioTask.interruptTriggered(); }
 
 void startRadioActions();
 
+time_t delaySend = false;
+bool flightModeActive = false;
+
 class ControlOutputAction : RadioAction, RunnableTask {
+
+    enum FLIGHT_COMMAND { CHANGE_FLIGHT_MODE = 0, CHANGE_CONFIG, SEND_ORIENTATION_RESET, SEND_CONTROLS };
 
     ScheduledLink *cancel = NULL;
 
-    bool flightModeActive = false;
+    bool communicatedFlightModeActive = false;
+
+    FLIGHT_COMMAND command;
 
     inputs_t knownInput;
+
+    uint32_t lastSendTime = 0;
+    uint8_t lastSent[4];
+
+    ct_config_t controlConfig;
 
     bool blink = false;
 
     void run(TIME_INT_t time) {
+        if (delaySend > time) {
+            FDOS_LOG.println("Ignoring input to give space for HB");
+            return;
+        }
+
+        if (lastSendTime > 0) {
+            if (millis() - lastSendTime > 250) {
+                ui.renderInput(lastSent[0], lastSent[1], lastSent[2], lastSent[3]);
+                lastSendTime = 0;
+            }
+        }
         inputs_t newInput = inputTask.inputs;
         uint16_t stateChanges = getChangeMap(knownInput, newInput);
         knownInput = newInput;
 
+        if (stateChanges & INPUT_CHANGE_MAP::button1Down) {
+            FDOS_LOG.println("Changing Flight Mode");
+            flightModeActive = !flightModeActive;
+            command = CHANGE_FLIGHT_MODE;
+            analogWrite(BTN1_LED_PIN, 200);
+            requestSend();
+            return;
+        }
+
+        if (stateChanges & INPUT_CHANGE_MAP::button2Down || stateChanges & INPUT_CHANGE_MAP::button3Down || stateChanges & INPUT_CHANGE_MAP::button4Down) {
+            command = CHANGE_CONFIG;
+            if (stateChanges & INPUT_CHANGE_MAP::button2Down) {
+                if (controlConfig.yawMode == 0)
+                    controlConfig.yawMode = ct_config_t::CONTROL_MODE::DIRECT;
+                else
+                    controlConfig.yawMode--;
+            }
+            if (stateChanges & INPUT_CHANGE_MAP::button3Down) {
+                if (controlConfig.pitchMode == 0)
+                    controlConfig.pitchMode = ct_config_t::CONTROL_MODE::DIRECT;
+                else
+                    controlConfig.pitchMode--;
+            }
+            if (stateChanges & INPUT_CHANGE_MAP::button4Down) {
+                if (controlConfig.rollMode == 0)
+                    controlConfig.rollMode = ct_config_t::CONTROL_MODE::DIRECT;
+                else
+                    controlConfig.rollMode--;
+            }
+
+            analogWrite(BTN2_LED_PIN, 1024 / ct_config_t::CONTROL_MODE::DIRECT * controlConfig.yawMode);
+            analogWrite(BTN3_LED_PIN, 1024 / ct_config_t::CONTROL_MODE::DIRECT * controlConfig.pitchMode);
+            analogWrite(BTN4_LED_PIN, 1024 / ct_config_t::CONTROL_MODE::DIRECT * controlConfig.rollMode);
+
+            requestSend();
+            return;
+        }
+
         if (flightModeActive) {
-
-            if (stateChanges & INPUT_CHANGE_MAP::button1Down) {
-                FDOS_LOG.println("Leaving Flight Mode");
-                analogWrite(BTN1_LED_PIN, 0);
-                flightModeActive = false;
+            if (stateChanges & INPUT_CHANGE_MAP::joyButtonDown) {
+                command = SEND_ORIENTATION_RESET;
                 requestSend();
-            } else {
-                analogWrite(BTN1_LED_PIN, 200);
-                if (stateChanges & (INPUT_CHANGE_MAP::joyH | INPUT_CHANGE_MAP::joyV | INPUT_CHANGE_MAP::slideH | INPUT_CHANGE_MAP::slideV)) {
-                    requestSend();
-                }
+                return;
             }
-
+            if (stateChanges & (INPUT_CHANGE_MAP::joyH | INPUT_CHANGE_MAP::joyV | INPUT_CHANGE_MAP::slideH | INPUT_CHANGE_MAP::slideV)) {
+                command = SEND_CONTROLS;
+                requestSend();
+                return;
+            }
         } else {
-
-            if (stateChanges & INPUT_CHANGE_MAP::button1Down) {
-                FDOS_LOG.println("Starting Flight Mode");
-                analogWrite(BTN1_LED_PIN, 1023);
-                flightModeActive = true;
-            } else {
-                analogWrite(BTN1_LED_PIN, 1023 * (((time / 100000) % 10) < 2));
-            }
+            analogWrite(BTN1_LED_PIN, 800 * (((time / 100000) % 10) < 2));
         }
     }
 
     uint8_t onSendReady(uint8_t *data) {
-        FDOS_LOG.printf("Transmitting Controls JH:%i JV:%i SH:%i SV:%i\n", knownInput.joyH, knownInput.joyV, knownInput.slideH, knownInput.slideV);
-        data[0] = RADIO_MSG_ID::TRANSMIT_CONTROLS;
-        if (flightModeActive) {
-            data[1] = knownInput.joyH;
-            data[2] = knownInput.joyV;
-            data[3] = knownInput.slideH;
-            data[4] = knownInput.slideV;
-        } else {
-            data[1] = 0;
-            data[2] = 0;
-            data[3] = 0;
-            data[4] = 0;
+        if (delaySend > microsSinceEpoch()) {
+            FDOS_LOG.println("@@@@ UTOH!");
         }
-        return 5;
+
+        switch (command) {
+        case CHANGE_FLIGHT_MODE:
+            data[0] = RADIO_MSG_ID::FLIGHT_MODE_UPDATE;
+            data[1] = flightModeActive;
+            FDOS_LOG.print("Sending Flight mode ");
+            FDOS_LOG.println(data[1] ? "On" : "Off");
+            return 2;
+
+        case SEND_ORIENTATION_RESET:
+            FDOS_LOG.println("@@#@#Sending orientation reset");
+            data[0] = RADIO_MSG_ID::RESET_ORIENTATION;
+            return 1;
+
+        case CHANGE_CONFIG:
+            FDOS_LOG.printf("@@@ SENT Control changes y:%i p:%i r:%i\n",controlConfig.yawMode,controlConfig.pitchMode,controlConfig.rollMode);
+            data[0] = RADIO_MSG_ID::CHANGE_CONFIG;
+            msgToBytes(&controlConfig, data + 1, controlConfig.size);
+            return controlConfig.size+1;
+
+        case SEND_CONTROLS:
+            // FDOS_LOG.printf("Transmitting Controls JH:%i JV:%i SH:%i SV:%i\n", knownInput.joyH, knownInput.joyV, knownInput.slideH, knownInput.slideV);
+            FDOS_LOG.print('.');
+            data[0] = RADIO_MSG_ID::TRANSMIT_CONTROLS;
+            if (flightModeActive) {
+                data[1] = knownInput.joyH;
+                data[2] = knownInput.joyV;
+                data[3] = knownInput.slideH;
+                data[4] = knownInput.slideV;
+            } else {
+                data[1] = 0;
+                data[2] = 0;
+                data[3] = 0;
+                data[4] = 0;
+            }
+            if (lastSendTime == 0)
+                lastSendTime = millis();
+            lastSent[0] = data[1];
+            lastSent[1] = data[2];
+            lastSent[2] = data[3];
+            lastSent[3] = data[4];
+            return 5;
+        }
     }
 
     void onStart() {
@@ -441,10 +527,14 @@ class ControlOutputAction : RadioAction, RunnableTask {
     }
 
     void onStop() {
+        flightModeActive = false;
         if (cancel != NULL)
             cancel->cancel();
         cancel = NULL;
         digitalWrite(BTN1_LED_PIN, LOW);
+        digitalWrite(BTN2_LED_PIN, LOW);
+        digitalWrite(BTN3_LED_PIN, LOW);
+        digitalWrite(BTN4_LED_PIN, LOW);
     }
 } controlOutputAction;
 
@@ -460,17 +550,23 @@ class SustainConnectionAction : RadioAction, RunnableTask {
     void onReceive(uint8_t length, uint8_t *data) {
         if (data[0] == FC_HEARTBEAT) {
             FDOS_LOG.println("Heartbeat received from flight computer");
-            msgFromBytes(lastFCHB, data + 1);
-            lastFCHB.print((Print*)&FDOS_LOG);
+            delaySend = 0;
+            // radioTask->setActiveListen(false);
+            msgFromBytes(&lastFCHB, data + 1, fc_heartbeat_t::size);
+            lastFCHB.print((Print *)&FDOS_LOG);
 
             int8_t fcSNR = lastFCHB.snr;
             int8_t ctSNR = radio.getSNR() * 10;
 
-            radioTask->getUI()->renderFCBattery(lastFCHB.batV);
-            radioTask->getUI()->renderRadioState(2, fcSNR, ctSNR);
+            ui.renderFCBattery(lastFCHB.batV);
+            ui.renderRadioState(2, fcSNR, ctSNR);
+            ui.renderMotors(lastFCHB.speeds[0], lastFCHB.speeds[1], lastFCHB.speeds[2], lastFCHB.speeds[3]);
+            ui.renderOrientation(convertHeading(lastFCHB.targetHeadings[0]), convertHeading(lastFCHB.targetHeadings[1]),
+                                 convertHeading(lastFCHB.targetHeadings[2]), convertHeading(lastFCHB.headings[0]), convertHeading(lastFCHB.headings[1]),
+                                 convertHeading(lastFCHB.headings[2]));
 
             FDOS_LOG.printf("Radio Stats - rxBat %i, rxSNR %i, txSNR %i\n", lastFCHB.batV, fcSNR, ctSNR);
-            missedHBCount=0;
+            missedHBCount = 0;
             return;
         }
         if (data[0] == RADIO_MSG_ID::RECEIVER_BEACON) {
@@ -481,27 +577,31 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     // returns length of data to send
     uint8_t onSendReady(uint8_t *data) {
-
+        FDOS_LOG.println("@@@ SENT HEARTBEAT");
+        lastCTHB.flightModeEnabled = flightModeActive;
         lastCTHB.batV = powerTask.getBatteryPercent();
         lastCTHB.snr = radio.getSNR() * 10;
         data[0] = RADIO_MSG_ID::CT_HEARTBEAT;
-        msgToBytes(lastCTHB, data + 1);
-        return 3;
+        msgToBytes(&lastCTHB, data + 1, ct_heartbeat_t::size);
+        return 4;
     }
 
     void run(TIME_INT_t time) {
-        if (missedHBCount > 2) {
-            FDOS_LOG.println("DISCONNECTING RECEIVER - No heartbeat in 2 cycles");
-            radioTask->removeAllActions();
+        if (missedHBCount > HB_MISS_DC_LIMIT) {
 
+            FDOS_LOG.println("DISCONNECTING RECEIVER - No heartbeat");
+            radioTask->removeAllActions();
             startRadioActions();
 
             return;
         } else {
             if (missedHBCount > 0)
-                radioTask->getUI()->renderRadioState(2, 0, missedHBCount);
+                ui.renderRadioState(2, 0, missedHBCount);
             if (requestSend()) {
+                delaySend = time + MICROS_PER_MILLI * TRANSMITTER_HB_ECHO_DELAY_MILLIS;
+                // radioTask->setActiveListen(true);
                 missedHBCount++;
+                FDOS_LOG.println("SENT HEARTBEAT");
             } else {
                 FDOS_LOG.println("***WARNING*** Can't send HB signal");
             }
@@ -510,15 +610,17 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     void onStart() {
         FDOS_LOG.println("Connection established");
+        // radioTask->setActiveListen(false);
         missedHBCount = 0;
         if (cancel != NULL)
             cancel->cancel();
-        radioTask->getUI()->renderRadioState(2, 0, 0);
+        ui.renderRadioState(2, 0, 0);
         cancel = executor.schedule((RunnableTask *)this, executor.getTimingPair(TRANSMITTER_HB_SECONDS, FrequencyUnitEnum::second));
     }
 
     void onStop() {
         lastFCHB.batV = 255;
+        // radioTask->setActiveListen(true);
         if (cancel != NULL)
             cancel->cancel();
         cancel = NULL;
@@ -539,8 +641,8 @@ class FindReceiverAction : RadioAction, RunnableTask {
     uint8_t confirmingClient = 0;
 
     void onStart() {
-        radioTask->getUI()->renderRadioState(0, 0, 0);
-        radioTask->getUI()->renderFCBattery(255);
+        ui.renderRadioState(0, 0, 0);
+        ui.renderFCBattery(255);
         if (cancel != NULL)
             cancel->cancel();
 
@@ -566,7 +668,7 @@ class FindReceiverAction : RadioAction, RunnableTask {
         if (data[0] == RADIO_MSG_ID::RECEIVER_BEACON) {
             FDOS_LOG.println("Beacon arrived from Receiver, sending response");
             receiverId = data[1];
-            radioTask->getUI()->renderRadioState(1, 0, 0);
+            ui.renderRadioState(1, 0, 0);
             confirmingClient = 1;
             requestSend();
         }
@@ -588,7 +690,7 @@ class FindReceiverAction : RadioAction, RunnableTask {
             }
         } else {
             uint8_t x = (time / 1000000) % 4;
-            radioTask->getUI()->renderRadioState(0, x, 0);
+            ui.renderRadioState(0, x, 0);
         }
     }
 
@@ -619,29 +721,29 @@ void setup(void) {
     Serial.begin(921600);
     delay(300);
 
-    tft.init(240, 240);
+    // tft.init(240, 240);
 
-    tft.setRotation(1);
-    tft.fillScreen(ST77XX_WHITE);
-    tft.setTextColor(ST77XX_BLACK);
+    // tft.setRotation(1);
+    // tft.fillScreen(ST77XX_WHITE);
+    // tft.setTextColor(ST77XX_BLACK);
     delay(1000);
-    tft.setCursor(0, 0);
-    tft.print("System Starting ...");
+    // tft.setCursor(0, 0);
+    // tft.print("System Starting ...");
 
     FDOS_LOG.println("System Starting ...");
 
-    ui.setDisplay(&tft);
+    // ui.setDisplay(&tft);
 
-    tft.println("[SX1276] Initializing ...");
+    // tft.println("[SX1276] Initializing ...");
     FDOS_LOG.println("[SX1276] Initializing ...");
     int state = radio.begin(RADIO_CARRIER_FREQ, RADIO_LINK_BANDWIDTH, RADIO_SPREADING_FACTOR); //-23dBm
 
     if (state == RADIOLIB_ERR_NONE) {
         FDOS_LOG.println("success!");
-        tft.println("success!");
+        // tft.println("success!");
     } else {
-        tft.print("SX1276 failed. Code:");
-        tft.println(state);
+        // tft.print("SX1276 failed. Code:");
+        // tft.println(state);
         FDOS_LOG.print("SX1276 failed. Code:");
         FDOS_LOG.println(state);
         powerTask.bootFailed(200, 50);
@@ -650,7 +752,7 @@ void setup(void) {
     // NOTE: 20 dBm value allows high power operation, but transmission
     //       duty cycle MUST NOT exceed 1%
     if (radio.setOutputPower(RADIO_POWER) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
-        tft.println("Invalid Power!");
+        // tft.println("Invalid Power!");
         FDOS_LOG.println("Invalid Power!");
         powerTask.bootFailed(50, 200);
     }
@@ -661,7 +763,7 @@ void setup(void) {
     analogReadResolution(10);
     analogWriteResolution(10);
 
-    tft.println("Init success");
+    // tft.println("Init success");
     FDOS_LOG.println("Init success");
 
     delay(1000);
@@ -670,13 +772,11 @@ void setup(void) {
 
     executor.schedule((RunnableTask *)&powerTask, executor.getTimingPair(5, FrequencyUnitEnum::per_second));
 
-    executor.schedule((RunnableTask *)&inputTask, executor.getTimingPair(40, FrequencyUnitEnum::per_second));
+    executor.schedule((RunnableTask *)&inputTask, executor.getTimingPair(MAX_TRANSMIT_PER_SECOND, FrequencyUnitEnum::per_second));
 
     executor.schedule((RunnableTask *)&radioTask, executor.getTimingPair(RADIO_INTERVAL_MILLIS, FrequencyUnitEnum::milli));
 
     ui.renderBackground();
-
-    radioTask.setUI((RadioUI *)&ui);
 
     startRadioActions();
 }
