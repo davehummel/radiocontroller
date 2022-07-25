@@ -1,0 +1,145 @@
+#include <Arduino.h>
+#include <SPI.h>
+
+#include "FDOS_LOG.h"
+#include "VMExecutor.h"
+#include "VMTime.h"
+
+#include "RadioTask.h"
+#include <RadioLib.h>
+#include <U8g2lib.h>
+
+#include <Encoder.h>
+#include <InputControls.h>
+
+U8G2_LS027B7DH01_400X240_F_4W_HW_SPI u8g2(U8G2_R1, /* cs=*/DISP_CS_PIN, /* dc=*/U8X8_PIN_NONE, /* reset=*/U8X8_PIN_NONE);
+
+Logger FDOS_LOG(&Serial);
+
+VMExecutor executor;
+
+WheelInput wheel( WHEEL_QDA, WHEEL_QDB);
+ButtonInput button( BTN1_PRESS_PIN);
+
+InputSet inputSet(4);
+
+class DisplayInputTestTask : RunnableTask {
+  public:
+    DisplayInputTestTask(int joy1HPin, int joy1VPin, int joy2HPin, int joy2VPin)
+        : joyH1( joy1HPin), joyV1( joy1VPin), joyH2( joy2HPin), joyV2( joy2VPin) {}
+
+    JoyInput joyH1;
+    JoyInput joyV1;
+
+    JoyInput joyH2;
+    JoyInput joyV2;
+
+  private:
+    void run(TIME_INT_t time) {
+        inputSet.update();
+        u8g2.setDrawColor(wheel.hasChanged() ? 0 : 1);
+        u8g2.drawBox(2, 80, 10, 10);
+        
+        u8g2.setDrawColor(joyH1.hasChanged() ? 0 : 1);
+        u8g2.drawBox(22, 80, 10, 10);
+        u8g2.setDrawColor(joyV1.hasChanged() ? 0 : 1);
+        u8g2.drawBox(42, 80, 10, 10);
+        u8g2.setDrawColor(button.hasChanged() ? 0 : 1);
+        u8g2.drawBox(62, 80, 10, 10);
+        u8g2.setDrawColor(button.wasPressed() ? 0 : 1);
+        u8g2.drawBox(62, 90, 5, 5);
+        u8g2.setDrawColor(button.wasReleased() ? 0 : 1);
+        u8g2.drawBox(62, 95, 5, 5);
+
+        u8g2.setDrawColor(1);
+        u8g2.drawBox(2, 100, 240, 72);
+        u8g2.setDrawColor(0);
+        u8g2.setCursor(2, 100);
+        u8g2.printf("H1: Raw %i uint %i int %i", joyH1.getRawValue(), joyH1.getUnsignedValue(), joyH1.getSignedValue());
+        u8g2.setCursor(2, 118);
+        u8g2.printf("V1: Raw %i uint %i int %i", joyV1.getRawValue(), joyV1.getUnsignedValue(), joyV1.getSignedValue());
+        u8g2.setCursor(2, 136);
+        u8g2.print(wheel.getDelta());
+        u8g2.setCursor(2, 154);
+        u8g2.print(button.isPressed());
+        u8g2.sendBuffer();
+    }
+
+} displayTask(JOY1_H_PIN, JOY1_V_PIN, JOY1_H_PIN, JOY1_V_PIN);
+
+int wheelVal = 0;
+
+void wheelFunc(){
+    wheelVal = wheelVal + wheel.getDelta();
+    Serial.println(wheelVal);
+}
+
+void setup(void) {
+    SPI.setSCK(SPI_CLK_PIN);
+    SPI.begin();
+    // PowerEnable pin must be enabled ASAP to keep system on after power is
+    // released
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, true);
+
+    pinMode(BTN1_PRESS_PIN, INPUT_PULLUP);
+
+    wheel.update();
+    wheel.setOnChangeFunction(&wheelFunc);
+
+
+    analogReadResolution(11);
+    analogReadAveraging(8);
+
+    pinMode(JOY1_H_PIN, INPUT);
+    pinMode(JOY1_V_PIN, INPUT);
+
+    Serial.begin(921600);
+
+    Serial.println("Display Starting ...");
+    u8g2.setBusClock(SPI_DISP_FREQ);
+    u8g2.begin();
+    u8g2.clearBuffer();
+    u8g2.setDrawColor(1);
+    u8g2.drawBox(0, 0, 240, 400);
+    u8g2.setDrawColor(0); // in order to make content visable
+    u8g2.setFont(u8g2_font_timB14_tr);
+    // u8g2.setFontRefHeightExtendedText();
+    u8g2.setFontPosTop();
+    // u8g2.setFontDirection(0);
+
+    u8g2.drawStr(0, 0, "Display Ready!");
+    u8g2.sendBuffer();
+
+    delay(2000);
+
+    digitalWrite(LED_PIN, false);
+
+    displayTask.joyH1.min = 751;
+    displayTask.joyH1.max = 1266;
+    displayTask.joyH1.midMinExc = 1006;
+    displayTask.joyH1.midMaxExc = 1014;
+
+    displayTask.joyV1.min = 753;
+    displayTask.joyV1.max = 1276;
+    displayTask.joyV1.midMinExc = 1006;
+    displayTask.joyV1.midMaxExc = 1014;
+
+    inputSet.addInput((PhysicalInput *)&(displayTask.joyH1));
+    inputSet.addInput((PhysicalInput *)&(displayTask.joyV1));
+    inputSet.addInput((PhysicalInput *)&(wheel));
+    inputSet.addInput((PhysicalInput *)&(button));
+
+    executor.schedule((RunnableTask *)&displayTask, executor.getTimingPair(25, FrequencyUnitEnum::milli));
+}
+
+void loop(void) {
+    uint32_t delayTime = executor.runSchedule();
+    // You may want to allow the loop to finish and avoid long delays
+    //    if you are using background arduino features
+    if (delayTime > 100000)
+        delayTime = 100000;
+    if (delayTime > MIN_MICRO_REST) {
+        delayMicroseconds(delayTime - MIN_MICRO_REST);
+    }
+}

@@ -8,7 +8,7 @@
 // #include <Adafruit_ST7789.h> // Hardware-specific library
 
 #include "FDOS_LOG.h"
-#include "RemoteDisplay.h"
+// #include "RemoteDisplay.h"
 #include "VMExecutor.h"
 #include "VMTime.h"
 
@@ -27,13 +27,6 @@ SX1276 radio(new Module(RADIO_CS_PIN, RADIO_DIO0_PIN, RADIO_RST_PIN, RADIO_DIO1_
 #define POWER_ENABLE_SENSE_PIN 34
 #define POWER_PRESS_SENSE_LVL 700
 
-#define JOY_BTN_PIN 30
-#define JOY_H_PIN 31
-#define JOY_V_PIN 32
-
-#define H_SLIDER_PIN 23
-#define V_SLIDER_PIN 22
-
 #define TOGGLE1_PIN 36
 #define TOGGLE2_PIN 21
 
@@ -41,7 +34,7 @@ Logger FDOS_LOG(&Serial);
 
 VMExecutor executor;
 
-RemoteUI ui;
+// RemoteUI ui;
 
 class PowerManagementTask : public RunnableTask {
   private:
