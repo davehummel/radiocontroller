@@ -3,9 +3,8 @@
 #include <i2c_t3.h>
 
 #include <RadioLib.h> //Click here to get the library: http://librarymanager/All#RadioLib
+#include <U8g2lib.h>
 
-// #include <Adafruit_GFX.h>    // Core graphics library
-// #include <Adafruit_ST7789.h> // Hardware-specific library
 
 #include "FDOS_LOG.h"
 // #include "RemoteDisplay.h"
@@ -15,24 +14,35 @@
 #include "FlightMessages.h"
 #include "RadioTask.h"
 
-// Adafruit_ST7789 tft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
+#include "InputControls.h"
+
+Logger FDOS_LOG(&Serial);
+
+U8G2_LS027B7DH01_400X240_F_4W_HW_SPI u8g2(U8G2_R1, /* cs=*/DISP_CS_PIN, /* dc=*/U8X8_PIN_NONE, /* reset=*/U8X8_PIN_NONE);
 
 SX1276 radio(new Module(RADIO_CS_PIN, RADIO_DIO0_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN));
+void beginReceive(void) { radio.startReceive(); }
+
 
 // TODO move these to platform.ini
-#define BAT_V_SENSE_PIN 33
-#define BAT_V_MIN_LVL 3.1
 
-#define BAT_SENSE_ENABLE_PIN 35
-#define POWER_ENABLE_SENSE_PIN 34
-#define POWER_PRESS_SENSE_LVL 700
-
-#define TOGGLE1_PIN 36
-#define TOGGLE2_PIN 21
 
 Logger FDOS_LOG(&Serial);
 
 VMExecutor executor;
+
+JoyInput joy1H(JOY1_H_PIN);
+JoyInput joy1V(JOY1_V_PIN);
+JoyInput joy2H(JOY2_H_PIN);
+JoyInput joy2V(JOY2_V_PIN);
+
+ButtonInput button1(BTN1_PRESS_PIN);
+ButtonInput button2(BTN1_PRESS_PIN);
+ButtonInput button3(BTN1_PRESS_PIN);
+ButtonInput button4(BTN1_PRESS_PIN);
+ButtonInput button5(BTN1_PRESS_PIN);
+
+ButtonInput rotMButton(38);
 
 // RemoteUI ui;
 
@@ -692,8 +702,6 @@ class FindReceiverAction : RadioAction, RunnableTask {
 void startRadioActions() { radioTask.addAction((RadioAction *)&findReceiver); }
 
 void setup(void) {
-    SPI.setSCK(SPI_CLK_PIN);
-
     // PowerEnable pin must be enabled ASAP to keep system on after power is
     // released
     pinMode(POWER_ENABLE_SENSE_PIN, OUTPUT);
@@ -703,23 +711,14 @@ void setup(void) {
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, true);
 
-    pinMode(TFT_PWM_PIN, OUTPUT);
-    analogWrite(TFT_PWM_PIN, 200);
-
-    pinMode(BTN1_LED_PIN, OUTPUT);
-    pinMode(BTN2_LED_PIN, OUTPUT);
-    pinMode(BTN3_LED_PIN, OUTPUT);
-    pinMode(BTN4_LED_PIN, OUTPUT);
-
+    SPI.begin();
     Serial.begin(921600);
-    delay(300);
 
     // tft.init(240, 240);
 
     // tft.setRotation(1);
     // tft.fillScreen(ST77XX_WHITE);
     // tft.setTextColor(ST77XX_BLACK);
-    delay(1000);
     // tft.setCursor(0, 0);
     // tft.print("System Starting ...");
 
