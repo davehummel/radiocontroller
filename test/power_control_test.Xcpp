@@ -63,6 +63,7 @@ void setup(void) {
 
     pinMode(HOLD_POWER_ENABLE_PIN, OUTPUT);
     digitalWrite(HOLD_POWER_ENABLE_PIN, true);
+
     pinMode(POWER_BUTTON_SENSE_PIN, INPUT_PULLDOWN);
 
     pinMode(ENABLE_BATTERY_SENSE_PIN, OUTPUT);
@@ -84,6 +85,11 @@ void setup(void) {
     pinMode(BTN3_LED_PIN, OUTPUT);
     pinMode(BTN4_LED_PIN, OUTPUT);
     pinMode(BTN5_LED_PIN, OUTPUT);
+
+    pinMode(SND_OUTPUT_PIN,OUTPUT);
+
+    tone(SND_OUTPUT_PIN, 100, 2000);  // Begin a tone which automatically stops
+
 
     // SPI.setSCK(SPI_CLK_PIN);
     SPI.begin();

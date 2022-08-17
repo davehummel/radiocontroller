@@ -1,7 +1,7 @@
 #ifndef remote__display_H__
 #define remote__display_H__
-#include <U8g2lib.h>
 #include "VMExecutor.h"
+#include <U8g2lib.h>
 
 class RemoteUI : RunnableTask {
 
@@ -12,17 +12,22 @@ class RemoteUI : RunnableTask {
 
     bool spiLock = false;
 
+    bool illuminated = false;
+
   public:
-    RemoteUI(U8G2* display):display(display){}
+    void setDisplay(U8G2 *_display) { display = _display; }
+    void start();
     void run(TIME_INT_t time);
-    void requestDraw(bool immediate);
-    U8G2* getDisplay(){
-      return display;
-    }
+    void requestDraw(bool immediate = false);
+    U8G2 *getDisplay() { return display; }
 
     void setSPIBusy();
     void setSPIFree();
 
+    void illuminate(bool on);
+    bool isIlluminated();
 };
+
+extern RemoteUI UI;
 
 #endif

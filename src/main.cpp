@@ -2,11 +2,15 @@
 #include <SPI.h>
 #include <i2c_t3.h>
 
+#include "PowerControl.h"
+
+
 #include <RadioLib.h> //Click here to get the library: http://librarymanager/All#RadioLib
 #include <U8g2lib.h>
 
 
 #include "FDOS_LOG.h"
+
 // #include "RemoteDisplay.h"
 #include "VMExecutor.h"
 #include "VMTime.h"
@@ -16,33 +20,18 @@
 
 #include "InputControls.h"
 
-Logger FDOS_LOG(&Serial);
 
-U8G2_LS027B7DH01_400X240_F_4W_HW_SPI u8g2(U8G2_R1, /* cs=*/DISP_CS_PIN, /* dc=*/U8X8_PIN_NONE, /* reset=*/U8X8_PIN_NONE);
+U8G2_LS027B7DH01_400X240_F_4W_HW_SPI u8g2(U8G2_R2, /* cs=*/DISP_CS_PIN, /* dc=*/U8X8_PIN_NONE, /* reset=*/U8X8_PIN_NONE);
 
 SX1276 radio(new Module(RADIO_CS_PIN, RADIO_DIO0_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN));
 void beginReceive(void) { radio.startReceive(); }
 
-
-// TODO move these to platform.ini
 
 
 Logger FDOS_LOG(&Serial);
 
 VMExecutor executor;
 
-JoyInput joy1H(JOY1_H_PIN);
-JoyInput joy1V(JOY1_V_PIN);
-JoyInput joy2H(JOY2_H_PIN);
-JoyInput joy2V(JOY2_V_PIN);
-
-ButtonInput button1(BTN1_PRESS_PIN);
-ButtonInput button2(BTN1_PRESS_PIN);
-ButtonInput button3(BTN1_PRESS_PIN);
-ButtonInput button4(BTN1_PRESS_PIN);
-ButtonInput button5(BTN1_PRESS_PIN);
-
-ButtonInput rotMButton(38);
 
 // RemoteUI ui;
 
@@ -751,10 +740,6 @@ void setup(void) {
     radio.setRfSwitchPins(RADIO_RX_EN_PIN, RADIO_TX_EN_PIN);
 
     radio.setDio0Action(radioInterrupt);
-
-    analogReadResolution(10);
-    analogWriteResolution(10);
-
     // tft.println("Init success");
     FDOS_LOG.println("Init success");
 

@@ -1,24 +1,40 @@
 #ifndef remote__input__controls_H__
 #define remote__input__controls_H__
+#include "VMExecutor.h"
 #include "VMTime.h"
 #include <Arduino.h>
 #include <InputControls.h>
 
-#define INPUT_COUNT 13
-enum CONTROLS_ENUM { POWER,BTN1,BTN2,BTN3,BTN4,BTN5,ARROWS,WHEEL,MID_BTN,JOY1_H,JOY1_V,JOY2_H,JOY2_V };
+class RemoteControlInputSet : public InputSet, RunnableTask {
+  private:
+    uint32_t intervalMicros;
 
-class RemoteControlInputSet:protected InputSet{
+  public:
+    enum ARROW_DIR { NONE, UP, LEFT, DOWN, RIGHT };
+
     RemoteControlInputSet();
 
-    void attach(CONTROLS_ENUM controlNum,FunctionPointer function); 
-    void detach(CONTROLS_ENUM controlNum,FunctionPointer function); 
+    void start(TIME_INT_t intervalMicros);
 
-    private:
+    void run(TIME_INT_t time);
 
-    MultiVButton powerBtn;
+    uint32_t getIntervalMicros() { return intervalMicros; }
 
+    JoyInput joy1H;
+    JoyInput joy1V;
+    JoyInput joy2H;
+    JoyInput joy2V;
 
+    WheelInput wheel;
+    MultiVButton arrows;
+    ButtonInput wheelBtn;
+    ButtonInput button1;
+    ButtonInput button2;
+    ButtonInput button3;
+    ButtonInput button4;
+    ButtonInput button5;
 };
 
+extern RemoteControlInputSet CONTROLS;
 
 #endif

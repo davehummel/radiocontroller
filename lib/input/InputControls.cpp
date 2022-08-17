@@ -2,22 +2,48 @@
 
 bool PhysicalInput::update() {
     changed = innerUpdate();
-    if (changed && onChangeFunc != NULL)
-        onChangeFunc();
+    if (changed){
+        for (uint8_t i = 0;i<MAX_LISTENERS;i++){
+            if (listeners[i]==NULL)
+                break;
+            listeners[i]();
+        }
+    }
     return changed;
 }
 
+void PhysicalInput::subscribe(FunctionPointer func) {
+    for (uint8_t i = 0; i < MAX_LISTENERS; i++) {
+        if (listeners[i] == NULL) {
+            listeners[i] = func;
+            return;
+        }
+    }
+}
+
+void PhysicalInput::unsubscribe(FunctionPointer func) {
+    bool found = false;
+    for (uint8_t i = 0; i < MAX_LISTENERS; i++) {
+        if (found) {
+            listeners[i - 1] = listeners[i];
+        } else if (listeners[i] == func) {
+            listeners[i] = NULL;
+            found = true;
+        }
+    }
+}
+
 bool JoyInput::innerUpdate() {
-    rawValue = analogRead(pinId);
+    rawValue = inverted ? 4095 - analogRead(pinId) : analogRead(pinId);
     uint8_t prevUnsignedValue = unsignedValue;
     if (rawValue <= min) {
         unsignedValue = 0;
     } else if (rawValue >= max) {
         unsignedValue = fullRange;
     } else if (rawValue < midMinExc) {
-        unsignedValue = ((rawValue - min) * inputMultiplier) / (midMinExc - min);
+        unsignedValue = ((rawValue - min) * halfRange) / (midMinExc - min);
     } else if (rawValue > midMaxExc) {
-        unsignedValue = halfRange + ((rawValue - midMinExc) * inputMultiplier) / (max - midMinExc);
+        unsignedValue = halfRange + ((rawValue - midMaxExc) * halfRange) / (max - midMaxExc);
     } else {
         unsignedValue = halfRange;
     }
@@ -45,11 +71,18 @@ bool ButtonInput::wasPressed() { return button.pressed(); }
 
 bool ButtonInput::wasReleased() { return button.released(); }
 
+void ButtonInput::setLEDValue(uint16_t val) {
+    if (ledPinID == -1)
+        return;
+    analogWrite(ledPinID,val);
+    ledVal = val;
+}
+
 bool MultiVButton::innerUpdate() {
     rawValue = analogRead(pinId);
     uint8_t newState = 0;
     if (rawValue > activationDistance) {
-        for (newState; newState < states; newState++) {
+        for (; newState < states; newState++) {
             if (abs(values[newState] - rawValue) < activationDistance) {
                 newState = newState + 1;
                 if (newState != currentState) {
@@ -76,22 +109,20 @@ uint16_t MultiVButton::getRawValue() { return rawValue; }
 
 bool InputSet::update() {
     bool anyUpdates = false;
-    mask = 0;
+    // mask = 0;
     for (uint8_t i = 0; i < inputCount; i++) {
         if (inputs[i] == NULL)
             continue;
         bool updated = inputs[i]->update();
         anyUpdates |= updated;
-        mask |= updated << i;
+        // mask |= updated << i;
     }
     return anyUpdates;
 }
 
-void InputSet::addInput(PhysicalInput *input, uint8_t inputId) {
-        if (inputs[inputId]!=NULL){
-            delete inputs[inputId];
-        }
-        inputs[inputId] = input;
+void InputSet::addInput(PhysicalInput &input, uint8_t inputId) {
+    if (inputs[inputId] != NULL) {
+        delete inputs[inputId];
+    }
+    inputs[inputId] = &input;
 }
-
-
