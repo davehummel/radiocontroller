@@ -1,8 +1,10 @@
 #include <InputControls.h>
 
-bool PhysicalInput::update() {
+bool PhysicalInput::update(bool mute) {
     changed = innerUpdate();
     if (changed){
+        if (mute)
+            return false;
         for (uint8_t i = 0;i<MAX_LISTENERS;i++){
             if (listeners[i]==NULL)
                 break;
@@ -34,19 +36,21 @@ void PhysicalInput::unsubscribe(FunctionPointer func) {
 }
 
 bool JoyInput::innerUpdate() {
-    rawValue = inverted ? 4095 - analogRead(pinId) : analogRead(pinId);
+    rawValue = analogRead(pinId);
     uint8_t prevUnsignedValue = unsignedValue;
-    if (rawValue <= min) {
+    if (rawValue <= min.u16) {
         unsignedValue = 0;
-    } else if (rawValue >= max) {
+    } else if (rawValue >= max.u16) {
         unsignedValue = fullRange;
-    } else if (rawValue < midMinExc) {
-        unsignedValue = ((rawValue - min) * halfRange) / (midMinExc - min);
-    } else if (rawValue > midMaxExc) {
-        unsignedValue = halfRange + ((rawValue - midMaxExc) * halfRange) / (max - midMaxExc);
+    } else if (rawValue < mid1.u16) {
+        unsignedValue = ((rawValue - min.u16) * halfRange) / (mid1.u16 - min.u16);
+    } else if (rawValue > mid2.u16) {
+        unsignedValue = halfRange + ((rawValue - mid2.u16) * halfRange) / (max.u16 - mid2.u16);
     } else {
         unsignedValue = halfRange;
     }
+    if (inverted)
+        unsignedValue = fullRange - unsignedValue;
     return unsignedValue != prevUnsignedValue;
 }
 
@@ -107,13 +111,13 @@ uint8_t MultiVButton::getState() { return currentState; }
 
 uint16_t MultiVButton::getRawValue() { return rawValue; }
 
-bool InputSet::update() {
+bool InputSet::update(bool mute) {
     bool anyUpdates = false;
     // mask = 0;
     for (uint8_t i = 0; i < inputCount; i++) {
         if (inputs[i] == NULL)
             continue;
-        bool updated = inputs[i]->update();
+        bool updated = inputs[i]->update(mute);
         anyUpdates |= updated;
         // mask |= updated << i;
     }

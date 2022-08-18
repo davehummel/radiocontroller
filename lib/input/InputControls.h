@@ -4,20 +4,21 @@
 #include <Arduino.h>
 #include <Bounce2.h>
 #include <Encoder.h>
+#include <SettingsStore.h>
 
 typedef void (*FunctionPointer)();
 
 class PhysicalInput {
   public:
     PhysicalInput() {}
-    bool update();
+    bool update(bool mute);
     bool hasChanged() { return changed; }
 
     void subscribe(FunctionPointer func);
 
     void unsubscribe(FunctionPointer func);
 
-    virtual ~PhysicalInput(){}
+    virtual ~PhysicalInput() {}
 
   protected:
     virtual bool innerUpdate() = 0;
@@ -29,20 +30,19 @@ class PhysicalInput {
 };
 
 class JoyInput : public PhysicalInput {
+
+  private:
+    EEPROMField::generic_val_t &min, &mid1, &mid2, &max;
+
   public:
-    JoyInput(int _pinId) : pinId(_pinId) {
+    JoyInput(int _pinId, EEPROMField &minField, EEPROMField &mid1Field, EEPROMField &mid2Field, EEPROMField &maxField)
+        : min(minField.getValue()), mid1(mid1Field.getValue()), mid2(mid2Field.getValue()), max(maxField.getValue()),pinId(_pinId) {
         analogReadResolution(ANALOG_READ_RESOLUTION);
         analogReadAveraging(ANALOG_READ_AVERAGING);
         pinMode(pinId, INPUT);
         setHalfRange(127);
     }
 
-    uint16_t min = 1535;       // Minimum raw value expected - For any x <= min then output is 0 (-halfRange if signed).
-    uint16_t max = 2535;       // Maximum raw value expected - For any x >= max then output is 2*halfRange (+halfRange if signed).
-    uint16_t midMinExc = 2015; // Raw input values less than midMinExc map from 0 to halfRange-1 (-halfRange to -1 if signed). Values between midMinExc and
-                               // midMaxExc = halfRange (0 signed)
-    uint16_t midMaxExc = 2055; // Raw input values greater than midMaxExc to max map from halfRange+1 to 2*halfRange
-                               //(1 to halfRange signed). Values between midMinExc and midMaxExc = halfRange (0 signed)
     bool inverted = false;
 
     void setHalfRange(uint16_t _halfRange) {
@@ -144,7 +144,7 @@ class InputSet {
     InputSet(uint8_t _inputCount) : inputCount(_inputCount), inputs(new PhysicalInput *[inputCount] { 0 }) {}
     ~InputSet() { delete inputs; }
 
-    bool update();
+    bool update(bool mute);
 
     void addInput(PhysicalInput &input, uint8_t inputId);
 

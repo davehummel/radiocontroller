@@ -8,7 +8,7 @@
 class RemoteControlInputSet : public InputSet, RunnableTask {
   private:
     uint32_t intervalMicros;
-
+    uint8_t mutePeriod; // allows for input pin signals to settle
   public:
     enum ARROW_DIR { NONE, UP, LEFT, DOWN, RIGHT };
 

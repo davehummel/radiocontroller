@@ -3,8 +3,6 @@
 
 RootUI ROOT_UI(UI);
 
-const String SCREEN_TITLES[] = {"Status", "Settings", "PC Control", "Flight Control", "Select"};
-
 void RootUI::run(TIME_INT_t time) {
     redrawCounter++;
     if (redrawCounter == 100) {

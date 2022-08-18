@@ -1,4 +1,5 @@
 #include "PowerControl.h"
+#include "SettingsStore.h"
 
 Power POWER(HOLD_POWER_ENABLE_PIN, POWER_BUTTON_SENSE_PIN, BATTERY_SENSE_PIN, ENABLE_BATTERY_SENSE_PIN);
 
@@ -65,11 +66,11 @@ float Power::getBatteryVoltage() {
 
 uint8_t Power::getBatteryPercent() {
     float vlt = getBatteryVoltage();
-    if (vlt <= SHUTOFF_BAT_VLT)
+    if (vlt <= field_AutoOff_V.getValue().f)
         return 0;
     if (vlt >= 4.2)
         return 100;
-    return (vlt - SHUTOFF_BAT_VLT) * 100 / (4.2 - SHUTOFF_BAT_VLT);
+    return (vlt - field_AutoOff_V.getValue().f) * 100 / (4.2 - field_AutoOff_V.getValue().f);
 }
 
 bool Power::isPowerBtnPressed() { return analogRead(powerBtnSensePin) > 100; }
@@ -99,7 +100,7 @@ void Power::run(TIME_INT_t time) {
         }
     }
 
-    if (getBatteryVoltage() <= SHUTOFF_BAT_VLT) {
+    if (getBatteryVoltage() <= field_AutoOff_V.getValue().f) {
         for (uint8_t i = 0; i < 30; i++) {
             delay(50);
             analogWrite(LED_R_PIN, i);

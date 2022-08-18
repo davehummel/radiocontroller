@@ -30,13 +30,13 @@ class Settings {
 class SettingField {
 
   public:
-    virtual bool readOnly() = 0;
+    virtual bool readOnly() { return true; };
 
-    virtual void modify(int delta) = 0;
+    virtual void modify(int delta){};
 
-    virtual void save() = 0;
+    virtual void save(){};
 
-    virtual void reset() = 0;
+    virtual void reset(){};
 
     virtual void overwriteWithDefault(){};
 
@@ -61,7 +61,7 @@ class LabelField : public SettingField {
 };
 
 class EEPROMField : public SettingField {
-  private:
+  public:
     union generic_val_t {
         generic_val_t(int64_t v) : i64(v){};
         generic_val_t(uint32_t v) : u32(v){};
@@ -76,9 +76,10 @@ class EEPROMField : public SettingField {
         float f;
     };
 
+  private:
     enum val_type_t { U8, I8, U16, I16, U32, I32, I64, F };
 
-    uint16_t addr = 0xFF;
+    uint16_t addr;
 
     generic_val_t rawVal;
     const generic_val_t rawMinInc;
@@ -94,7 +95,11 @@ class EEPROMField : public SettingField {
     void saveEEPROM();
 
   protected:
-    void setAddr(uint16_t _addr){addr = _addr;}
+    void setAddr(uint16_t _addr) {
+        Serial.printf("%p setting addr internally %i\n",this, _addr);
+        addr = _addr;
+        cached = false;
+    }
 
   public:
     const val_type_t type;
@@ -117,11 +122,33 @@ class EEPROMField : public SettingField {
 
     uint8_t getSize();
 
+    generic_val_t &getValue() {
+        if (!cached)
+            readEEPROM();
+        return rawVal;
+    }
+
     friend class Settings;
 };
 
 extern EEPROMField field_AutoOff_Min;
 extern EEPROMField field_AutoOff_V;
+extern EEPROMField field_joy2H_Min;
+extern EEPROMField field_joy2H_Mid1;
+extern EEPROMField field_joy2H_Mid2;
+extern EEPROMField field_joy2H_Max;
+extern EEPROMField field_joy2V_Min;
+extern EEPROMField field_joy2V_Mid1;
+extern EEPROMField field_joy2V_Mid2;
+extern EEPROMField field_joy2V_Max;
+extern EEPROMField field_joy1H_Min;
+extern EEPROMField field_joy1H_Mid1;
+extern EEPROMField field_joy1H_Mid2;
+extern EEPROMField field_joy1H_Max;
+extern EEPROMField field_joy1V_Min;
+extern EEPROMField field_joy1V_Mid1;
+extern EEPROMField field_joy1V_Mid2;
+extern EEPROMField field_joy1V_Max;
 
 extern Settings SETTINGS;
 #endif

@@ -1,14 +1,9 @@
 #include "Screens.h"
 #include "PowerControl.h"
-#include "SettingsStore.h"
 
-StatusScreen STATUS_SCREEN;
-NavScreen NAV_SCREEN;
-SettingsScreen SETTINGS_SCREEN;
-FlightScreen FLIGHT_SCREEN;
-PCScreen PC_SCREEN;
 
-void drawXYInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t xVal, uint yVal, uint16_t valMax, bool printVals) {
+
+void drawXYInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t xVal, uint16_t yVal, uint16_t valMax, bool printVals) {
 
     UI.getDisplay()->setDrawColor(0);
     UI.getDisplay()->drawBox(topX, topY, size, size);
@@ -153,7 +148,7 @@ void NavScreen::drawGuide() {
     UI.getDisplay()->setFont(u8g2_font_10x20_tr);
 
     UI.getDisplay()->drawStr(48, 190 - UI.getDisplay()->getStrWidth("Flight Control"), "Flight Control");
-    UI.getDisplay()->drawStr(98, 180 - UI.getDisplay()->getStrWidth("PC Control"), "PC Control");
+    UI.getDisplay()->drawStr(98, 180 - UI.getDisplay()->getStrWidth("USB Joystick"), "USB Joystick");
     UI.getDisplay()->drawStr(148, 190 - UI.getDisplay()->getStrWidth("Settings"), "Settings");
     UI.getDisplay()->drawStr(298, 180 - UI.getDisplay()->getStrWidth("Status"), "Status");
     UI.getDisplay()->drawStr(348, 190 - UI.getDisplay()->getStrWidth("Display Light"), "Display Light");
@@ -396,7 +391,7 @@ void resetFieldSettingButtonListener() {
 }
 
 // 0:"MM/DD/YY HH:MM:SS" | 1:Month 2:"/" 3:Day 4:"/" 5:Year 6:" " 7: hour 8:":" 9: min 10:":" 11:Sec |
-// 12: "Auto off - " | 13:off_min 14:" min without input" | 15: "Battery under " 16:minV 17:"v"|
+// 12: "Auto off - " | 13:off_min 14:" min without input" |  16:minV 17:"v min battery"|
 
 class : public SettingField {
 
@@ -643,15 +638,52 @@ LabelField colonLabel(":");
 LabelField dateTimeLabel("Date/Time - MM/DD/YY HH:MM:SS");
 LabelField autoOffLabel("Auto off -");
 LabelField offMinLabel(" minute(s) without input");
-LabelField offBatteryLabel(" v battery");
+LabelField offBatteryLabel(" v battery minimum");
+LabelField inputSettingsLabel("Input Trim");
+LabelField leftLabel(" <- ");
+LabelField rightLabel("   -> ");
+LabelField leftBracketLabel("[");
+LabelField leftCarrotLabel("<");
+LabelField lineLabel("|");
+LabelField rightCarrotLabel(">");
+LabelField rightBracketLabel("]");
 
-SettingField *SettingsScreen::FIELDS[SettingsScreen::FIELD_COUNT] = {
-    &dateTimeLabel, &monthField, &slashLabel,  &dayField,     &slashLabel,        &yearField,   &spaceLabel,      &hourField,       &colonLabel,
-    &minuteField,   &colonLabel, &secondField, &autoOffLabel, &field_AutoOff_Min, &offMinLabel, &field_AutoOff_V, &offBatteryLabel, &slashLabel};
+class JoyStatsField : public SettingField {
+  private:
+    int hInput, vInput;
+    char buffer[32] = {0};
 
-const uint8_t SettingsScreen::LINES[LINE_COUNT] = {0, 1, 12, 13, 15};
-const uint8_t SettingsScreen::TABS[TAB_COUNT] = {0, 12};
+  public:
+    JoyStatsField(int hPin, int vPin) : hInput(hPin), vInput(vPin) {}
+
+    bool readOnly() { return true; }
+    const char *getText() {
+        sprintf(buffer, "H %04i V %04i", analogRead(hInput), analogRead(vInput));
+        return buffer;
+    }
+};
+
+JoyStatsField joy2StatsLabel(JOY2_H_PIN, JOY2_V_PIN);
+JoyStatsField joy1StatsLabel(JOY1_H_PIN, JOY1_V_PIN);
+
+const uint8_t SettingsScreen::LINES[LINE_COUNT] = {0, 1, 12, 13, 15, 17, 18, 19, 21, 30, 39, 40, 50};
+const uint8_t SettingsScreen::TABS[TAB_COUNT] = {0, 18};
 const String SettingsScreen::TAB_NAMES[TAB_COUNT] = {"DATE & TIME", "AUTO OFF"};
+
+SettingsScreen::SettingsScreen()
+    : FIELDS{&dateTimeLabel,      &monthField,       &slashLabel,        &dayField,          &slashLabel,
+              &yearField,          &spaceLabel,       &hourField,         &colonLabel, // 9
+              &minuteField,        &colonLabel,       &secondField,       &autoOffLabel,      &field_AutoOff_Min,
+              &offMinLabel,        &field_AutoOff_V,  &offBatteryLabel,   &spaceLabel, // 18
+              &inputSettingsLabel, &leftLabel,        &joy2StatsLabel,    &leftBracketLabel,  &field_joy2H_Min,
+              &leftCarrotLabel,    &field_joy2H_Mid1, &lineLabel,         &field_joy2H_Mid2, // 27
+              &rightCarrotLabel,   &field_joy2H_Max,  &rightBracketLabel, &leftBracketLabel,  &field_joy2V_Min,
+              &leftCarrotLabel,    &field_joy2V_Mid1, &lineLabel,         &field_joy2V_Mid2, // 36
+              &rightCarrotLabel,   &field_joy2V_Max,  &rightBracketLabel, &joy1StatsLabel,    &rightLabel,
+              &leftBracketLabel,   &field_joy1H_Min,  &leftCarrotLabel,   &field_joy1H_Mid1,  &lineLabel, // 45
+              &field_joy1H_Mid2,   &rightCarrotLabel, &field_joy1H_Max,   &rightBracketLabel, &leftBracketLabel,
+              &field_joy1V_Min,    &leftCarrotLabel,  &field_joy1V_Mid1,  &lineLabel, // 54
+              &field_joy1V_Mid2,   &rightCarrotLabel, &field_joy1V_Max,   &rightBracketLabel} {}
 
 String SettingsScreen::getField(uint8_t index, bool &editable) {
     if (index >= FIELD_COUNT) {
@@ -669,6 +701,7 @@ void SettingsScreen::startChange() {
         if (FIELDS[index]->readOnly()) {
             return;
         }
+        Serial.printf("Editing %p with val %s\n",FIELDS[index],FIELDS[index]->getText());
         CONTROLS.arrows.unsubscribe(nextSettingArrowListener);
         CONTROLS.button5.unsubscribe(exitSettingsButtonListener);
         CONTROLS.button3.subscribe(cancelFieldSettingButtonListener);
@@ -695,8 +728,8 @@ void SettingsScreen::changeValue(int val) {
 
     val = val / 2;
 
-    if (val != 0 )
-     FIELDS[index]->modify(val);
+    if (val != 0)
+        FIELDS[index]->modify(val);
 }
 
 void SettingsScreen::cancelChange() {
@@ -727,21 +760,21 @@ void SettingsScreen::exitEditMode() {
     CONTROLS.button3.setLEDValue(0);
     CONTROLS.button4.setLEDValue(0);
     CONTROLS.button5.setLEDValue(255);
-      CONTROLS.button1.setLEDValue(255* !FIELDS[index]->readOnly());
+    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
 }
 
 void SettingsScreen::incrementIndex() {
     index++;
     if (index == FIELD_COUNT)
         index = 0;
- CONTROLS.button1.setLEDValue(255* !FIELDS[index]->readOnly());
+    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
 }
 
 void SettingsScreen::decrementIndex() {
     if (index == 0)
         index = FIELD_COUNT;
     index--;
-   CONTROLS.button1.setLEDValue(255* !FIELDS[index]->readOnly());
+    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
 }
 
 void SettingsScreen::incrementTab() {
@@ -750,7 +783,7 @@ void SettingsScreen::incrementTab() {
     if (line == LINE_COUNT)
         line = 0;
     index = getIndexAtLine(line);
-   CONTROLS.button1.setLEDValue(255* !FIELDS[index]->readOnly());
+    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
 }
 
 void SettingsScreen::decrementTab() {
@@ -759,7 +792,7 @@ void SettingsScreen::decrementTab() {
     if (line == 0)
         line = LINE_COUNT - 1;
     index = getIndexAtLine(line);
-   CONTROLS.button1.setLEDValue(255* !FIELDS[index]->readOnly());
+    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
 }
 
 uint8_t SettingsScreen::getLine(uint8_t index) {
@@ -800,6 +833,7 @@ void SettingsScreen::drawField(String &text, bool editable, bool selected) {
 
 void SettingsScreen::start() {
     if (link == NULL) {
+
         CONTROLS.wheelBtn.subscribe(editSettingButtonListener);
         CONTROLS.button1.subscribe(resetFieldSettingButtonListener);
         CONTROLS.arrows.subscribe(nextSettingArrowListener);
@@ -961,3 +995,9 @@ void PCScreen::updateScreen() {
     UI.getDisplay()->drawStr(230, 205, "Nav");
     UI.requestDraw();
 }
+
+StatusScreen STATUS_SCREEN;
+NavScreen NAV_SCREEN;
+SettingsScreen SETTINGS_SCREEN;
+FlightScreen FLIGHT_SCREEN;
+PCScreen PC_SCREEN;

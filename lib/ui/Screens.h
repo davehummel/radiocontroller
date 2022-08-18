@@ -25,14 +25,16 @@ class NavScreen : Screen, RunnableTask {
 
 class SettingsScreen : Screen, RunnableTask {
   private:
-    static const uint16_t FIELD_COUNT = 18;
-    static const uint8_t LINE_COUNT = 5;
+    static const uint16_t FIELD_COUNT = 59;
+    static const uint8_t LINE_COUNT = 13;
     static const uint8_t TAB_COUNT = 2;
 
-    static SettingField *FIELDS[SettingsScreen::FIELD_COUNT];
+  
     static const uint8_t LINES[LINE_COUNT];
     static const uint8_t TABS[TAB_COUNT];
     static const String TAB_NAMES[TAB_COUNT];
+
+    SettingField *FIELDS[SettingsScreen::FIELD_COUNT];
 
     uint8_t index = 0;
 
@@ -56,6 +58,7 @@ class SettingsScreen : Screen, RunnableTask {
     void render(bool isEditable, bool isSelected, String text);
 
   public:
+    SettingsScreen();
     void start();
     void stop();
 

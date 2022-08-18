@@ -4,15 +4,36 @@
 
 EEPROMField field_AutoOff_Min(1, 0ul, 240ul, 10ul);
 EEPROMField field_AutoOff_V(3.0, 3.6, 3.2);
+EEPROMField field_joy2H_Min(2, 1000ul, 2000ul, 1550ul);
+EEPROMField field_joy2H_Mid1(2, 1000ul, 3000, 2010ul);
+EEPROMField field_joy2H_Mid2(2, 1000ul, 3000, 2080ul);
+EEPROMField field_joy2H_Max(2, 2000ul, 3000ul, 2500ul);
+EEPROMField field_joy2V_Min(2, 1000ul, 2000ul, 1550ul);
+EEPROMField field_joy2V_Mid1(2, 1000ul, 3000ul, 2010ul);
+EEPROMField field_joy2V_Mid2(2, 1000ul, 3000ul, 2080ul);
+EEPROMField field_joy2V_Max(2, 2000ul, 3000ul, 2500ul);
+EEPROMField field_joy1H_Min(2, 1000ul, 2000ul, 1550ul);
+EEPROMField field_joy1H_Mid1(2, 1000ul, 3000ul, 2010ul);
+EEPROMField field_joy1H_Mid2(2, 1000ul, 3000ul, 2080ul);
+EEPROMField field_joy1H_Max(2, 2000ul, 3000ul, 2500ul);
+EEPROMField field_joy1V_Min(2, 1000ul, 2000ul, 1550ul);
+EEPROMField field_joy1V_Mid1(2, 1000ul, 3000ul, 2010ul);
+EEPROMField field_joy1V_Mid2(2, 1000ul, 3000ul, 2080ul);
+EEPROMField field_joy1V_Max(2, 2000ul, 3000ul, 2500ul);
 
-const uint8_t EEFIELD_COUNT = 2;
-EEPROMField EEPROM_FIELDS[EEFIELD_COUNT] = {field_AutoOff_Min, field_AutoOff_V};
+const uint8_t EEFIELD_COUNT = 18;
+EEPROMField *EEPROM_FIELDS[EEFIELD_COUNT] = {&field_AutoOff_Min, &field_AutoOff_V,  &field_joy2H_Min,  &field_joy2H_Mid1, &field_joy2H_Mid2, &field_joy2H_Max,
+                                             &field_joy2V_Min,   &field_joy2V_Mid1, &field_joy2V_Mid2, &field_joy2V_Max,  &field_joy1H_Min,  &field_joy1H_Mid1,
+                                             &field_joy1H_Mid2,  &field_joy1H_Max,  &field_joy1V_Min,  &field_joy1V_Mid1, &field_joy1V_Mid2, &field_joy1V_Max};
 
 Settings::Settings() {
     uint16_t addr = FIRST_SETTING_ADDR;
     for (uint8_t i = 0; i < EEFIELD_COUNT; i++) {
-        EEPROM_FIELDS[i].setAddr(addr);
-        addr += EEPROM_FIELDS[i].getSize();
+        Serial.print(addr);
+        EEPROM_FIELDS[i]->setAddr(addr);
+        Serial.print(" = ");
+        Serial.println(EEPROM_FIELDS[i]->getText());
+        addr += EEPROM_FIELDS[i]->getSize();
     }
 }
 
@@ -38,12 +59,14 @@ void Settings::initializeEEPROM() {
     EEPROM.put(0, INIT_VAL);
 
     for (uint8_t i = 0; i < EEFIELD_COUNT; i++) {
-        EEPROM_FIELDS[i].overwriteWithDefault();
+        EEPROM_FIELDS[i]->overwriteWithDefault();
     }
 }
 
 void Settings::start() {
+
     uint16_t initVal = EEPROM.get(0, initVal);
+
     bool override = (!digitalRead(BTN1_PRESS_PIN) && !digitalRead(BTN2_PRESS_PIN));
     if (override) {
         tone(SND_OUTPUT_PIN, 1200);
@@ -78,7 +101,6 @@ void Settings::saveRuntimeSeconds() { EEPROM.put(INIT_VAL_SIZE, getRuntimeSecond
 char EEPROMField::buffer[32] = {0};
 
 void EEPROMField::modify(int delta) {
-    FDOS_LOG.printf("EEPROM Delta=%i\n", delta);
     if (!cached) {
         readEEPROM();
     }
@@ -87,38 +109,31 @@ void EEPROMField::modify(int delta) {
     case U8:
     case U16:
     case U32:
-        FDOS_LOG.printf("updating U32 val from %i ", rawVal.u32);
         rawVal.u32 += delta;
         if (rawVal.u32 > rawMaxInc.u32) {
             rawVal.u32 = rawMinInc.u32;
         } else if (rawVal.u32 < rawMinInc.u32) {
             rawVal.u32 = rawMaxInc.u32;
         }
-        FDOS_LOG.printf(" to %i\n", rawVal.u32, rawVal.u32);
         break;
     case I8:
     case I16:
     case I32:
     case I64:
-        FDOS_LOG.printf("updating I64 val from %" PRIi64 " ", rawVal.i64);
-
         rawVal.i64 += delta;
         if (rawVal.i64 > rawMaxInc.i64) {
             rawVal.i64 = rawMinInc.i64;
         } else if (rawVal.i64 < rawMinInc.i64) {
             rawVal.i64 = rawMaxInc.i64;
         }
-        FDOS_LOG.printf("to %" PRIi64 "\n", rawVal.i64);
         break;
     case F:
-        FDOS_LOG.printf("updateing F val from %f ", rawVal.f);
         rawVal.f += delta / 100.0;
         if (rawVal.f > rawMaxInc.f) {
-            rawVal.f = rawVal.f;
+            rawVal.f = rawMinInc.f;
         } else if (rawVal.f < rawMinInc.f) {
             rawVal.f = rawMaxInc.f;
         }
-        FDOS_LOG.printf("to %f\n", rawVal.f);
         break;
     }
 }
@@ -196,6 +211,7 @@ uint8_t EEPROMField::getSize() {
 
 void EEPROMField::readEEPROM() {
     cached = true;
+    FDOS_LOG.printf("%p reading from addr: %i\n", this, addr);
     switch (type) {
     case I8:
         EEPROM.get(addr, rawVal.i8);
@@ -225,6 +241,7 @@ void EEPROMField::readEEPROM() {
 }
 
 void EEPROMField::saveEEPROM() {
+    FDOS_LOG.printf("%p saving %s at addr: %i\n", this, getText(), addr);
     switch (type) {
     case I8:
         EEPROM.put(addr, rawVal.i8);

@@ -1,3 +1,4 @@
+
 #include <Arduino.h>
 #include <SPI.h>
 
@@ -28,13 +29,13 @@ void clearDisplay() {
 
 void saveRuntime() { SETTINGS.saveRuntimeSeconds(); }
 
+
+
 void setup(void) {
     Serial.begin(921600);
     SPI.begin();
     u8g2.setBusClock(SPI_DISP_FREQ);
     u8g2.begin();
-
-    CONTROLS.update();
 
     analogWrite(LED_G_PIN, 5);
     analogWrite(LED_B_PIN, 2);
@@ -43,13 +44,15 @@ void setup(void) {
 
     POWER.onShutdownSubscribe(clearDisplay);
     POWER.onShutdownSubscribe(saveRuntime);
-     POWER.start();
+    POWER.start();
 
     UI.setDisplay(&u8g2);
-    CONTROLS.update();
 
     UI.start();
     ROOT_UI.start();
+
+
+
     ROOT_UI.setScreen((Screen *)&STATUS_SCREEN);
     CONTROLS.start(10000);
 }
