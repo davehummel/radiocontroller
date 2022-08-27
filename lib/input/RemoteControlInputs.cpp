@@ -35,7 +35,7 @@ void RemoteControlInputSet::start(TIME_INT_t _intervalMicros) {
 }
 
 void RemoteControlInputSet::run(TIME_INT_t time) {
-    update(mutePeriod>0);
+    update(time,mutePeriod>0);
     if (mutePeriod>0)
         mutePeriod--;
 }

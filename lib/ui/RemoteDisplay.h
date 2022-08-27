@@ -10,8 +10,6 @@ class RemoteUI : RunnableTask {
     bool redrawNeeded = false;
     bool redrawMissed = false;
 
-    bool spiLock = false;
-
     bool illuminated = false;
 
   public:
@@ -20,9 +18,6 @@ class RemoteUI : RunnableTask {
     void run(TIME_INT_t time);
     void requestDraw(bool immediate = false);
     U8G2 *getDisplay() { return display; }
-
-    void setSPIBusy();
-    void setSPIFree();
 
     void illuminate(bool on);
     bool isIlluminated();

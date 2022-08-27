@@ -60,6 +60,7 @@ void Power::onShutdownUnsubscribe(FunctionPointer listener) {
 float Power::getBatteryVoltage() {
     digitalWrite(enBatSensePin, HIGH);
     uint16_t raw = analogRead(batSensePin);
+    FDOS_LOG.println(raw);
 
     return raw / BATTERY_VLT_FACTOR;
 }
@@ -103,7 +104,17 @@ void Power::run(TIME_INT_t time) {
     if (getBatteryVoltage() <= field_AutoOff_V.getValue().f) {
         for (uint8_t i = 0; i < 30; i++) {
             delay(50);
+            analogWrite(LED_R_PIN, i * 7);
+        }
+        powerDown();
+        return;
+    }
+
+    if (microsSinceEpoch() - CONTROLS.lastInputMicros() > field_AutoOff_Min.getValue().u8 * MICROS_PER_MINUTE && CONTROLS.lastInputMicros() > 0) {
+        for (uint8_t i = 0; i < 30; i++) {
+            delay(50);
             analogWrite(LED_R_PIN, i);
+            analogWrite(LED_B_PIN, i);
         }
         powerDown();
         return;

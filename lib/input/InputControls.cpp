@@ -2,11 +2,11 @@
 
 bool PhysicalInput::update(bool mute) {
     changed = innerUpdate();
-    if (changed){
+    if (changed) {
         if (mute)
             return false;
-        for (uint8_t i = 0;i<MAX_LISTENERS;i++){
-            if (listeners[i]==NULL)
+        for (uint8_t i = 0; i < MAX_LISTENERS; i++) {
+            if (listeners[i] == NULL)
                 break;
             listeners[i]();
         }
@@ -37,7 +37,7 @@ void PhysicalInput::unsubscribe(FunctionPointer func) {
 
 bool JoyInput::innerUpdate() {
     rawValue = analogRead(pinId);
-    uint8_t prevUnsignedValue = unsignedValue;
+    uint16_t prevUnsignedValue = unsignedValue;
     if (rawValue <= min.u16) {
         unsignedValue = 0;
     } else if (rawValue >= max.u16) {
@@ -51,7 +51,7 @@ bool JoyInput::innerUpdate() {
     }
     if (inverted)
         unsignedValue = fullRange - unsignedValue;
-    return unsignedValue != prevUnsignedValue;
+    return abs(unsignedValue - prevUnsignedValue) > halfRange / 10;
 }
 
 int16_t JoyInput::getSignedValue() { return unsignedValue - halfRange; }
@@ -78,7 +78,7 @@ bool ButtonInput::wasReleased() { return button.released(); }
 void ButtonInput::setLEDValue(uint16_t val) {
     if (ledPinID == -1)
         return;
-    analogWrite(ledPinID,val);
+    analogWrite(ledPinID, val);
     ledVal = val;
 }
 
@@ -111,7 +111,7 @@ uint8_t MultiVButton::getState() { return currentState; }
 
 uint16_t MultiVButton::getRawValue() { return rawValue; }
 
-bool InputSet::update(bool mute) {
+bool InputSet::update(TIME_INT_t time, bool mute) {
     bool anyUpdates = false;
     // mask = 0;
     for (uint8_t i = 0; i < inputCount; i++) {
@@ -120,6 +120,9 @@ bool InputSet::update(bool mute) {
         bool updated = inputs[i]->update(mute);
         anyUpdates |= updated;
         // mask |= updated << i;
+    }
+    if (anyUpdates || inputTimeMicros == 0) {
+        inputTimeMicros = time;
     }
     return anyUpdates;
 }

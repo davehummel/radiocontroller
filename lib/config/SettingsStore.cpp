@@ -1,6 +1,7 @@
-#include <EEPROM.h>
-#include <FDOS_LOG.h>
+
 #include <SettingsStore.h>
+#include <FDOS_LOG.h>
+
 
 EEPROMField field_AutoOff_Min(1, 0ul, 240ul, 10ul);
 EEPROMField field_AutoOff_V(3.0, 3.6, 3.2);
@@ -21,10 +22,17 @@ EEPROMField field_joy1V_Mid1(2, 1000ul, 3000ul, 2010ul);
 EEPROMField field_joy1V_Mid2(2, 1000ul, 3000ul, 2080ul);
 EEPROMField field_joy1V_Max(2, 2000ul, 3000ul, 2500ul);
 
-const uint8_t EEFIELD_COUNT = 18;
+EEPROMField field_radio_Freq(900.0,931.0,915.0);
+EEPROMField field_radio_Linkbw(1,0ul,2ul,2ul);
+EEPROMField field_radio_SpreadingFactor(1,6ul,12ul,7ul);
+EEPROMField field_radio_CodingRate(1,5ul,8ul,5ul);
+EEPROMField field_radio_Power(1,2ul,20ul,10);
+
+const uint8_t EEFIELD_COUNT = 23;
 EEPROMField *EEPROM_FIELDS[EEFIELD_COUNT] = {&field_AutoOff_Min, &field_AutoOff_V,  &field_joy2H_Min,  &field_joy2H_Mid1, &field_joy2H_Mid2, &field_joy2H_Max,
                                              &field_joy2V_Min,   &field_joy2V_Mid1, &field_joy2V_Mid2, &field_joy2V_Max,  &field_joy1H_Min,  &field_joy1H_Mid1,
-                                             &field_joy1H_Mid2,  &field_joy1H_Max,  &field_joy1V_Min,  &field_joy1V_Mid1, &field_joy1V_Mid2, &field_joy1V_Max};
+                                             &field_joy1H_Mid2,  &field_joy1H_Max,  &field_joy1V_Min,  &field_joy1V_Mid1, &field_joy1V_Mid2, &field_joy1V_Max,
+                                             &field_radio_Freq,&field_radio_Linkbw,&field_radio_SpreadingFactor,&field_radio_CodingRate,&field_radio_Power};
 
 Settings::Settings() {
     uint16_t addr = FIRST_SETTING_ADDR;

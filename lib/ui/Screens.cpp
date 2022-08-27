@@ -1,8 +1,53 @@
 #include "Screens.h"
+#include "ControllerRadio.h"
 #include "PowerControl.h"
+#include "RadioTask.h"
 
+String EMPTY = "";
 
+void drawNavMenu(String b1 = EMPTY, String b2 = EMPTY, String b3 = EMPTY, String bCirc = EMPTY, String b4 = EMPTY, String b5 = EMPTY) {
+    UI.getDisplay()->setDrawColor(1);
+    UI.getDisplay()->drawBox(24, 190, 352, 50);
+    UI.getDisplay()->setDrawColor(0);
+    UI.getDisplay()->setFont(u8g2_font_t0_14b_te);
 
+    UI.getDisplay()->drawCircle(40, 215, 10);
+    if (b1 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b1.c_str());
+        UI.getDisplay()->drawStr(40 - w / 2, 190, b1.c_str());
+    }
+
+    UI.getDisplay()->drawCircle(90, 202, 10);
+    if (b2 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b2.c_str());
+        UI.getDisplay()->drawStr(90 - w / 2, 217, b2.c_str());
+    }
+
+    UI.getDisplay()->drawCircle(140, 215, 10);
+    if (b3 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b3.c_str());
+        UI.getDisplay()->drawStr(140 - w / 2, 190, b3.c_str());
+    }
+
+    UI.getDisplay()->drawCircle(290, 202, 10);
+    if (b4 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b4.c_str());
+        UI.getDisplay()->drawStr(290 - w / 2, 217, b4.c_str());
+    }
+
+    UI.getDisplay()->drawCircle(340, 215, 10);
+    if (b5 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b5.c_str());
+        UI.getDisplay()->drawStr(340 - w / 2, 190, b5.c_str());
+    }
+
+    UI.getDisplay()->drawDisc(200, 212, 6);
+    UI.getDisplay()->drawCircle(200, 212, 15);
+    UI.getDisplay()->drawCircle(200, 212, 20);
+    if (bCirc != EMPTY) {
+        UI.getDisplay()->drawStr(226, 194, bCirc.c_str());
+    }
+}
 void drawXYInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t xVal, uint16_t yVal, uint16_t valMax, bool printVals) {
 
     UI.getDisplay()->setDrawColor(0);
@@ -136,14 +181,8 @@ void NavScreen::run(TIME_INT_t time) {
 
 void NavScreen::drawGuide() {
     UI.getDisplay()->setDrawColor(1);
-    UI.getDisplay()->drawBox(0, 25, 400, 217);
-    UI.getDisplay()->setDrawColor(0);
-    UI.getDisplay()->drawDisc(40, 215, 10);
-    UI.getDisplay()->drawDisc(90, 205, 10);
-    UI.getDisplay()->drawDisc(140, 215, 10);
-    UI.getDisplay()->drawDisc(290, 205, 10);
-    UI.getDisplay()->drawDisc(340, 215, 10);
-    UI.getDisplay()->drawCircle(200, 212, 20);
+    UI.getDisplay()->drawBox(0, 25, 400, 215);
+    drawNavMenu();
     UI.getDisplay()->setFontDirection(1);
     UI.getDisplay()->setFont(u8g2_font_10x20_tr);
 
@@ -237,21 +276,9 @@ void StatusScreen::updateRootUI() {
         drawMenu("Config", false);
         break;
     }
-    UI.getDisplay()->setDrawColor(1);
-    UI.getDisplay()->drawBox(24, 190, 352, 50);
-    UI.getDisplay()->setDrawColor(0);
-    UI.getDisplay()->drawCircle(40, 215, 10);
-    UI.getDisplay()->drawCircle(90, 205, 10);
-    UI.getDisplay()->drawCircle(140, 215, 10);
-    UI.getDisplay()->drawCircle(290, 205, 10);
-    UI.getDisplay()->drawCircle(340, 215, 10);
 
-    UI.getDisplay()->drawDisc(200, 212, 6);
-    UI.getDisplay()->drawCircle(200, 212, 15);
-    UI.getDisplay()->drawCircle(200, 212, 20);
-    UI.getDisplay()->drawHLine(209, 212, 18);
-    UI.getDisplay()->setFont(u8g2_font_10x20_tr);
-    UI.getDisplay()->drawStr(230, 205, "Nav");
+    drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit");
+
     UI.requestDraw();
 }
 
@@ -297,9 +324,20 @@ void StatusScreen::renderPage() {
         UI.getDisplay()->setFont(u8g2_font_helvB14_tr);
         UI.getDisplay()->print("Radio ");
         UI.getDisplay()->setFont(u8g2_font_helvR14_tr);
-        UI.getDisplay()->printf("Freq %.1f LkBW %i", RADIO_CARRIER_FREQ, RADIO_LINK_BANDWIDTH);
+        UI.getDisplay()->printf("Freq %.1f LkBW ", field_radio_Freq.getValue().f);
+        switch (field_radio_Linkbw.getValue().u8) {
+        case 0:
+            UI.getDisplay()->print("100");
+            break;
+        case 1:
+            UI.getDisplay()->print("250");
+            break;
+        case 2:
+            UI.getDisplay()->print("500");
+            break;
+        }
         UI.getDisplay()->setCursor(35, 128);
-        UI.getDisplay()->printf("   Sprd %i Pwr %i", RADIO_SPREADING_FACTOR, RADIO_POWER);
+        UI.getDisplay()->printf("   Sprd %i Pwr %i", field_radio_SpreadingFactor.getValue().u8, field_radio_Power.getValue().u8);
 #ifdef RADIO_AGRESSIVE_RECEIVE_SWITCH
         UI.getDisplay()->printf(" Fast Sw");
 #endif
@@ -345,12 +383,6 @@ void StatusScreen::pageRight() {
     renderPage();
 }
 
-void exitSettingsButtonListener() {
-    if (CONTROLS.button5.isPressed()) {
-        ROOT_UI.setScreen((Screen *)&NAV_SCREEN);
-    }
-}
-
 void nextSettingArrowListener() {
     if (CONTROLS.arrows.getState() == CONTROLS.RIGHT) {
         SETTINGS_SCREEN.incrementIndex();
@@ -377,7 +409,11 @@ void editSettingArrowListener() {
     }
 }
 
-void editSettingButtonListener() { SETTINGS_SCREEN.startChange(); }
+void editSettingButtonListener() {
+    if (CONTROLS.button5.isPressed()) {
+        SETTINGS_SCREEN.startChange();
+    }
+}
 
 void changeSettingWheelListener() { SETTINGS_SCREEN.changeValue(CONTROLS.wheel.getDelta()); }
 
@@ -418,6 +454,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), getLocalMinute(now), getLocalSecond(now), getLocalDay(now), month, getLocalYear(now));
+        CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -461,6 +498,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), getLocalMinute(now), getLocalSecond(now), day, getLocalMonth(now), getLocalYear(now));
+        CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -500,6 +538,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), getLocalMinute(now), getLocalSecond(now), getLocalDay(now), getLocalMonth(now), year);
+        CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -539,6 +578,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(hour, getLocalMinute(now), getLocalSecond(now), getLocalDay(now), getLocalMonth(now), getLocalYear(now));
+        CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -578,6 +618,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), min, getLocalSecond(now), getLocalDay(now), getLocalMonth(now), getLocalYear(now));
+        CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -610,6 +651,7 @@ class : public SettingField {
         else if (sec < 0) {
             sec = 60 + sec % 60; // remember negative mod result from negative val
         }
+
         modified = true;
     };
 
@@ -618,6 +660,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), getLocalMinute(now), sec, getLocalDay(now), getLocalMonth(now), getLocalYear(now));
+        CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -635,11 +678,12 @@ class : public SettingField {
 LabelField slashLabel("\\");
 LabelField spaceLabel(" ");
 LabelField colonLabel(":");
-LabelField dateTimeLabel("Date/Time - MM/DD/YY HH:MM:SS");
-LabelField autoOffLabel("Auto off -");
+LabelField dateTimeLabel("# Date/Time #");
+LabelField autoOffLabel("# Auto off #");
 LabelField offMinLabel(" minute(s) without input");
 LabelField offBatteryLabel(" v battery minimum");
-LabelField inputSettingsLabel("Input Trim");
+LabelField spacerLabel("# Inputs #");
+LabelField inputSettingsLabel("Joystick Trim");
 LabelField leftLabel(" <- ");
 LabelField rightLabel("   -> ");
 LabelField leftBracketLabel("[");
@@ -647,6 +691,13 @@ LabelField leftCarrotLabel("<");
 LabelField lineLabel("|");
 LabelField rightCarrotLabel(">");
 LabelField rightBracketLabel("]");
+LabelField radioLabel("# Radio #");
+LabelField radioFreqLabel("Carier Freq ");
+LabelField radioMHZLabel(" mhz");
+LabelField radioBWLabel("Link BW (0->125,1->250,2->500khz) ");
+LabelField radioSpreadLabel("Spread Factor (6-12) ");
+LabelField radioCodingRateLabel("Coding Rate (5-8) ");
+LabelField radioPowerLabel("Tx Power (2-20 dBm) ");
 
 class JoyStatsField : public SettingField {
   private:
@@ -666,24 +717,81 @@ class JoyStatsField : public SettingField {
 JoyStatsField joy2StatsLabel(JOY2_H_PIN, JOY2_V_PIN);
 JoyStatsField joy1StatsLabel(JOY1_H_PIN, JOY1_V_PIN);
 
-const uint8_t SettingsScreen::LINES[LINE_COUNT] = {0, 1, 12, 13, 15, 17, 18, 19, 21, 30, 39, 40, 50};
-const uint8_t SettingsScreen::TABS[TAB_COUNT] = {0, 18};
-const String SettingsScreen::TAB_NAMES[TAB_COUNT] = {"DATE & TIME", "AUTO OFF"};
+const uint8_t SettingsScreen::LINES[LINE_COUNT] = {0, 1, 12, 13, 15, 17, 18, 19, 21, 30, 39, 41, 50, 59, 60, 63, 65, 67, 69};
 
 SettingsScreen::SettingsScreen()
-    : FIELDS{&dateTimeLabel,      &monthField,       &slashLabel,        &dayField,          &slashLabel,
-              &yearField,          &spaceLabel,       &hourField,         &colonLabel, // 9
-              &minuteField,        &colonLabel,       &secondField,       &autoOffLabel,      &field_AutoOff_Min,
-              &offMinLabel,        &field_AutoOff_V,  &offBatteryLabel,   &spaceLabel, // 18
-              &inputSettingsLabel, &leftLabel,        &joy2StatsLabel,    &leftBracketLabel,  &field_joy2H_Min,
-              &leftCarrotLabel,    &field_joy2H_Mid1, &lineLabel,         &field_joy2H_Mid2, // 27
-              &rightCarrotLabel,   &field_joy2H_Max,  &rightBracketLabel, &leftBracketLabel,  &field_joy2V_Min,
-              &leftCarrotLabel,    &field_joy2V_Mid1, &lineLabel,         &field_joy2V_Mid2, // 36
-              &rightCarrotLabel,   &field_joy2V_Max,  &rightBracketLabel, &joy1StatsLabel,    &rightLabel,
-              &leftBracketLabel,   &field_joy1H_Min,  &leftCarrotLabel,   &field_joy1H_Mid1,  &lineLabel, // 45
-              &field_joy1H_Mid2,   &rightCarrotLabel, &field_joy1H_Max,   &rightBracketLabel, &leftBracketLabel,
-              &field_joy1V_Min,    &leftCarrotLabel,  &field_joy1V_Mid1,  &lineLabel, // 54
-              &field_joy1V_Mid2,   &rightCarrotLabel, &field_joy1V_Max,   &rightBracketLabel} {}
+    : FIELDS{&dateTimeLabel,
+             &monthField,
+             &slashLabel,
+             &dayField,
+             &slashLabel,
+             &yearField,
+             &spaceLabel,
+             &hourField,
+             &colonLabel, // 9
+             &minuteField,
+             &colonLabel,
+             &secondField,
+             &autoOffLabel,
+             &field_AutoOff_Min,
+             &offMinLabel,
+             &field_AutoOff_V,
+             &offBatteryLabel,
+             &spacerLabel, // 18
+             &inputSettingsLabel,
+             &leftLabel,
+             &joy2StatsLabel,
+             &leftBracketLabel,
+             &field_joy2H_Min,
+             &leftCarrotLabel,
+             &field_joy2H_Mid1,
+             &lineLabel,
+             &field_joy2H_Mid2, // 27
+             &rightCarrotLabel,
+             &field_joy2H_Max,
+             &rightBracketLabel,
+             &leftBracketLabel,
+             &field_joy2V_Min,
+             &leftCarrotLabel,
+             &field_joy2V_Mid1,
+             &lineLabel,
+             &field_joy2V_Mid2, // 36
+             &rightCarrotLabel,
+             &field_joy2V_Max,
+             &rightBracketLabel,
+             &joy1StatsLabel,
+             &rightLabel,
+             &leftBracketLabel,
+             &field_joy1H_Min,
+             &leftCarrotLabel,
+             &field_joy1H_Mid1,
+             &lineLabel, // 45
+             &field_joy1H_Mid2,
+             &rightCarrotLabel,
+             &field_joy1H_Max,
+             &rightBracketLabel,
+             &leftBracketLabel,
+             &field_joy1V_Min,
+             &leftCarrotLabel,
+             &field_joy1V_Mid1,
+             &lineLabel, // 54
+             &field_joy1V_Mid2,
+             &rightCarrotLabel,
+             &field_joy1V_Max,
+             &rightBracketLabel,
+             &radioLabel,
+             &radioFreqLabel // 60
+             ,
+             &field_radio_Freq,
+             &radioMHZLabel,
+             &radioBWLabel,
+             &field_radio_Linkbw,
+             &radioSpreadLabel,
+             &field_radio_SpreadingFactor, // 66
+             &radioCodingRateLabel,
+             &field_radio_CodingRate,
+             &radioPowerLabel,
+             &field_radio_Power} {}
 
 String SettingsScreen::getField(uint8_t index, bool &editable) {
     if (index >= FIELD_COUNT) {
@@ -701,15 +809,18 @@ void SettingsScreen::startChange() {
         if (FIELDS[index]->readOnly()) {
             return;
         }
-        Serial.printf("Editing %p with val %s\n",FIELDS[index],FIELDS[index]->getText());
+        Serial.printf("Editing %p with val %s\n", FIELDS[index], FIELDS[index]->getText());
         CONTROLS.arrows.unsubscribe(nextSettingArrowListener);
-        CONTROLS.button5.unsubscribe(exitSettingsButtonListener);
+        CONTROLS.wheelBtn.unsubscribe(navEnableButtonListener);
         CONTROLS.button3.subscribe(cancelFieldSettingButtonListener);
         CONTROLS.button4.subscribe(saveFieldSettingButtonListener);
         CONTROLS.arrows.subscribe(editSettingArrowListener);
         CONTROLS.button3.setLEDValue(255);
         CONTROLS.button4.setLEDValue(255);
         CONTROLS.button5.setLEDValue(0);
+
+        drawNavMenu(EMPTY, "Save", "Cancel", EMPTY, EMPTY, "Reset");
+
         editing = true;
     }
 }
@@ -752,29 +863,26 @@ void SettingsScreen::overwriteWithDefault() { FIELDS[index]->overwriteWithDefaul
 
 void SettingsScreen::exitEditMode() {
     CONTROLS.arrows.subscribe(nextSettingArrowListener);
-    CONTROLS.button5.subscribe(exitSettingsButtonListener);
+    CONTROLS.wheelBtn.subscribe(navEnableButtonListener);
     CONTROLS.button3.unsubscribe(cancelFieldSettingButtonListener);
     CONTROLS.button4.unsubscribe(saveFieldSettingButtonListener);
     CONTROLS.arrows.unsubscribe(editSettingArrowListener);
 
-    CONTROLS.button3.setLEDValue(0);
-    CONTROLS.button4.setLEDValue(0);
-    CONTROLS.button5.setLEDValue(255);
-    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
+    updateButtonLights();
 }
 
 void SettingsScreen::incrementIndex() {
     index++;
     if (index == FIELD_COUNT)
         index = 0;
-    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
+    updateButtonLights();
 }
 
 void SettingsScreen::decrementIndex() {
     if (index == 0)
         index = FIELD_COUNT;
     index--;
-    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
+    updateButtonLights();
 }
 
 void SettingsScreen::incrementTab() {
@@ -783,16 +891,26 @@ void SettingsScreen::incrementTab() {
     if (line == LINE_COUNT)
         line = 0;
     index = getIndexAtLine(line);
-    CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
+    updateButtonLights();
 }
 
 void SettingsScreen::decrementTab() {
     int line = getLine(index);
     line--;
     if (line == 0)
-        line = LINE_COUNT - 1;
+        line = LINE_COUNT - 2;
     index = getIndexAtLine(line);
+    updateButtonLights();
+}
+
+void SettingsScreen::updateButtonLights() {
     CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
+    CONTROLS.button5.setLEDValue(255 * !FIELDS[index]->readOnly());
+    CONTROLS.button2.setLEDValue(0);
+    CONTROLS.button3.setLEDValue(0);
+    CONTROLS.button4.setLEDValue(0);
+
+    drawNavMenu(FIELDS[index]->readOnly() ? EMPTY : "Edit", EMPTY, EMPTY, "Exit", EMPTY, FIELDS[index]->readOnly() ? EMPTY : "Reset");
 }
 
 uint8_t SettingsScreen::getLine(uint8_t index) {
@@ -808,11 +926,15 @@ uint8_t SettingsScreen::getLine(uint8_t index) {
 
 uint8_t SettingsScreen::getIndexAtLine(uint8_t line) {
     if (line >= LINE_COUNT)
-        return FIELD_COUNT - 1;
+        return FIELD_COUNT;
     return LINES[line];
 }
 void SettingsScreen::drawField(String &text, bool editable, bool selected) {
-    UI.getDisplay()->setFont(editable ? u8g2_font_helvB14_tr : u8g2_font_helvR14_tr);
+    if (text.c_str()[0] == '#') {
+        UI.getDisplay()->setFont(u8g2_font_chargen_92_tr);
+    } else {
+        UI.getDisplay()->setFont(editable ? u8g2_font_helvB14_tr : u8g2_font_helvR14_tr);
+    }
     uint16_t width = UI.getDisplay()->getStrWidth(text.c_str());
     uint16_t x = UI.getDisplay()->getCursorX() - 1;
     uint16_t y = UI.getDisplay()->getCursorY() - 2;
@@ -833,25 +955,27 @@ void SettingsScreen::drawField(String &text, bool editable, bool selected) {
 
 void SettingsScreen::start() {
     if (link == NULL) {
-
-        CONTROLS.wheelBtn.subscribe(editSettingButtonListener);
+        CONTROLS.wheelBtn.subscribe(navEnableButtonListener);
         CONTROLS.button1.subscribe(resetFieldSettingButtonListener);
         CONTROLS.arrows.subscribe(nextSettingArrowListener);
         CONTROLS.wheel.subscribe(changeSettingWheelListener);
-        CONTROLS.button5.subscribe(exitSettingsButtonListener);
-        CONTROLS.button5.setLEDValue(255);
+        CONTROLS.button5.subscribe(editSettingButtonListener);
         link = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(100, FrequencyUnitEnum::milli));
-        index = 1;        // These two commands will trigger proper events when selecting the first field
+
+        UI.getDisplay()->setDrawColor(1);
+        UI.getDisplay()->drawBox(0, 25, 400, 215);
+
+        index = 1;        // These two lines will trigger proper events when selecting the first field
         decrementIndex(); //
     }
 }
 void SettingsScreen::stop() {
     if (link != NULL) {
-        CONTROLS.wheelBtn.unsubscribe(editSettingButtonListener);
+        CONTROLS.wheelBtn.unsubscribe(navEnableButtonListener);
         CONTROLS.button1.unsubscribe(resetFieldSettingButtonListener);
         CONTROLS.arrows.unsubscribe(nextSettingArrowListener);
         CONTROLS.wheel.unsubscribe(changeSettingWheelListener);
-        CONTROLS.button5.unsubscribe(exitSettingsButtonListener);
+        CONTROLS.button5.unsubscribe(editSettingButtonListener);
         CONTROLS.button5.setLEDValue(0);
         link->cancel();
         link = NULL;
@@ -860,18 +984,23 @@ void SettingsScreen::stop() {
 
 void SettingsScreen::run(TIME_INT_t time) {
     UI.getDisplay()->setDrawColor(1);
-    UI.getDisplay()->drawBox(0, 25, 400, 217);
+    UI.getDisplay()->drawBox(0, 25, 400, 149);
     uint8_t currentLine = getLine(index);
     uint8_t startLine = max(0, currentLine - 3);
     uint8_t endLine = min(LINE_COUNT - 1, startLine + 6);
     uint8_t startIndex = getIndexAtLine(startLine);
     uint8_t endIndex = endLine == LINE_COUNT - 1 ? FIELD_COUNT : (getIndexAtLine(endLine + 1));
-    UI.getDisplay()->setCursor(4, 30);
+    UI.getDisplay()->setCursor(20, 27);
     uint8_t printLine = startLine;
     for (int i = startIndex; i < endIndex; i++) {
         if (i == getIndexAtLine(printLine + 1)) {
             printLine++;
-            UI.getDisplay()->setCursor(4, 30 + 26 * (printLine - startLine));
+            uint16_t y = 27 + 21 * (printLine - startLine);
+            UI.getDisplay()->setCursor(20, y);
+            if (printLine == currentLine) {
+                UI.getDisplay()->setDrawColor(0);
+                UI.getDisplay()->drawTriangle(0, y, 18, y + 8, 0, y + 16);
+            }
         }
         bool editable = false;
         String text = getField(i, editable);
@@ -881,10 +1010,144 @@ void SettingsScreen::run(TIME_INT_t time) {
     UI.requestDraw();
 }
 
-void FlightScreen::start() { CONTROLS.wheelBtn.subscribe(navEnableButtonListener); }
-void FlightScreen::stop() { CONTROLS.wheelBtn.unsubscribe(navEnableButtonListener); }
+void radioActivateListener() {
+    if (CONTROLS.button1.isPressed()) {
+        FLIGHT_SCREEN.activateRadio();
+    }
+}
 
-void FlightScreen::run(TIME_INT_t time) {}
+void FlightScreen::start() {
+    link = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(250, FrequencyUnitEnum::milli));
+
+    CONTROLS.button1.setLEDValue(255);
+    CONTROLS.button1.subscribe(radioActivateListener);
+    CONTROLS.wheelBtn.subscribe(navEnableButtonListener);
+    CONTROLS.joy1H.setHalfRange(127);
+    CONTROLS.joy1V.setHalfRange(127);
+    CONTROLS.joy2H.setHalfRange(127);
+    CONTROLS.joy2V.setHalfRange(127);
+
+    UI.getDisplay()->setDrawColor(1);
+    UI.getDisplay()->drawBox(0, 25, 400, 215);
+}
+void FlightScreen::stop() {
+    RADIOTASK.removeAllActions();
+
+    CONTROLS.wheelBtn.unsubscribe(navEnableButtonListener);
+    CONTROLS.button1.unsubscribe(radioActivateListener);
+    link->cancel();
+}
+
+void FlightScreen::run(TIME_INT_t time) {
+    switch (state) {
+    case OFF:
+        UI.getDisplay()->setDrawColor(1);
+        UI.getDisplay()->drawBox(0, 25, 400, 25);
+        UI.getDisplay()->setDrawColor(0);
+
+        UI.getDisplay()->setCursor(5, 26);
+        UI.getDisplay()->setFont(u8g2_font_helvR14_tr);
+        UI.getDisplay()->print("Lora Channel : ");
+        UI.getDisplay()->setFont(u8g2_font_helvB14_tr);
+        UI.getDisplay()->print(field_radio_Freq.getValue().f);
+        UI.getDisplay()->setFont(u8g2_font_helvR14_tr);
+        UI.getDisplay()->print("Transmitter ID : ");
+        UI.getDisplay()->setFont(u8g2_font_helvB14_tr);
+        UI.getDisplay()->print(TRANSMITTER_ID);
+        drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", EMPTY, "Activate");
+        UI.requestDraw();
+        break;
+    case SEARCHING:
+        UI.getDisplay()->setDrawColor(1);
+        UI.getDisplay()->drawBox(0, 25, 400, 215);
+        UI.getDisplay()->setDrawColor(0);
+        switch (radioFindReceiverTask.state) {
+        case FindReceiverAction::PINGING:
+            switch ((time / 1000000) % 5) {
+            case 0:
+                UI.getDisplay()->drawTriangle(20, 50, 60, 50, 40, 70);
+                break;
+            case 1:
+                UI.getDisplay()->drawTriangle(60, 50, 60, 90, 40, 70);
+                break;
+            case 2:
+                UI.getDisplay()->drawTriangle(20, 90, 60, 90, 40, 70);
+                break;
+            case 3:
+                UI.getDisplay()->drawTriangle(20, 50, 20, 90, 40, 70);
+                break;
+            case 4:
+                UI.getDisplay()->drawBox(20, 50, 40, 40);
+                break;
+            }
+
+            break;
+        default:
+            return;
+        }
+        UI.requestDraw();
+        break;
+    case CONNECTED:
+        break;
+    }
+}
+
+void FlightScreen::activateRadio() {
+    if (state != OFF)
+        return;
+
+    CONTROLS.button1.setLEDValue(0);
+
+    UI.getDisplay()->setFont(u8g2_font_t0_14b_te);
+    UI.getDisplay()->setCursor(20, 50);
+
+    UI.getDisplay()->print("Starting Radio ");
+    UI.requestDraw(true);
+
+    delay(250);
+
+    float linkBW = 500;
+    switch (field_radio_Linkbw.getValue().u8) {
+    case 0:
+        linkBW = 100;
+        break;
+    case 1:
+        linkBW = 250;
+        break;
+    case 2:
+        linkBW = 500;
+        break;
+    }
+    int rstate = RADIO.begin(field_radio_Freq.getValue().f, linkBW, field_radio_SpreadingFactor.getValue().u8, field_radio_CodingRate.getValue().u8);
+
+    if (rstate == RADIOLIB_ERR_NONE) {
+        UI.getDisplay()->println("...");
+        UI.requestDraw(true);
+    } else {
+        UI.getDisplay()->print("SX1276 Init failed. Code:");
+        UI.getDisplay()->println(rstate);
+        UI.requestDraw(true);
+        digitalWrite(LED_R_PIN, 1);
+        delay(5000);
+        POWER.powerDown();
+        return;
+    }
+
+    if (RADIO.setOutputPower(field_radio_Power.getValue().u8) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
+        UI.getDisplay()->println("Invalid Power Setting.");
+        UI.requestDraw(true);
+        delay(5000);
+        digitalWrite(LED_R_PIN, 1);
+        POWER.powerDown();
+        return;
+    }
+    UI.getDisplay()->println("Started!");
+    UI.requestDraw(true);
+    delay(500);
+    state = SEARCHING;
+    RADIOTASK.addAction((RadioAction *)&radioFindReceiverTask);
+    return;
+}
 
 void PCScreen::start() {
     if (link == NULL) {
@@ -897,6 +1160,9 @@ void PCScreen::start() {
         CONTROLS.joy1V.setHalfRange(512);
         CONTROLS.joy2H.setHalfRange(512);
         CONTROLS.joy2V.setHalfRange(512);
+
+        UI.getDisplay()->setDrawColor(1);
+        UI.getDisplay()->drawBox(0, 25, 400, 215);
     }
 }
 void PCScreen::stop() {
@@ -911,7 +1177,7 @@ void PCScreen::stop() {
 void PCScreen::run(TIME_INT_t time) {
     updateJoystick();
     runCount++;
-    if (runCount == 20) {
+    if (runCount == 10) {
         runCount = 0;
         updateScreen();
     }
@@ -992,7 +1258,7 @@ void PCScreen::updateScreen() {
     UI.getDisplay()->drawCircle(200, 212, 20);
     UI.getDisplay()->drawHLine(209, 212, 18);
     UI.getDisplay()->setFont(u8g2_font_10x20_mr);
-    UI.getDisplay()->drawStr(230, 205, "Nav");
+    UI.getDisplay()->drawStr(230, 205, "Exit");
     UI.requestDraw();
 }
 

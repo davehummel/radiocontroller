@@ -1,5 +1,7 @@
 #ifndef settings__store_H__
 #define settings__store_H__
+#include <Arduino.h>
+#include <EEPROM.h>
 #include "VMTime.h"
 
 class Settings {
@@ -149,6 +151,13 @@ extern EEPROMField field_joy1V_Min;
 extern EEPROMField field_joy1V_Mid1;
 extern EEPROMField field_joy1V_Mid2;
 extern EEPROMField field_joy1V_Max;
+
+extern EEPROMField field_radio_Freq;
+extern EEPROMField field_radio_Linkbw; 
+extern EEPROMField field_radio_SpreadingFactor;
+extern EEPROMField field_radio_CodingRate;
+extern EEPROMField field_radio_Power;
+
 
 extern Settings SETTINGS;
 #endif

@@ -4,6 +4,7 @@
 #include "VMExecutor.h"
 #include "VMTime.h"
 #include <Arduino.h>
+#include <RemoteControlInputs.h>
 
 typedef void (*FunctionPointer)();
 

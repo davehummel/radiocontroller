@@ -25,11 +25,10 @@ class NavScreen : Screen, RunnableTask {
 
 class SettingsScreen : Screen, RunnableTask {
   private:
-    static const uint16_t FIELD_COUNT = 59;
-    static const uint8_t LINE_COUNT = 13;
+    static const uint16_t FIELD_COUNT = 71;
+    static const uint8_t LINE_COUNT = 19;
     static const uint8_t TAB_COUNT = 2;
 
-  
     static const uint8_t LINES[LINE_COUNT];
     static const uint8_t TABS[TAB_COUNT];
     static const String TAB_NAMES[TAB_COUNT];
@@ -81,11 +80,17 @@ class SettingsScreen : Screen, RunnableTask {
     void saveChange();
 
     void overwriteWithDefault();
+
+    void updateButtonLights();
 };
 
 class FlightScreen : Screen, RunnableTask {
   private:
     String title = "Flight Control";
+
+    enum FlightScreenState { OFF, SEARCHING, CONNECTED } state = OFF;
+
+    ScheduledLink *link = NULL;
 
   public:
     void start();
@@ -94,6 +99,9 @@ class FlightScreen : Screen, RunnableTask {
     void run(TIME_INT_t time);
 
     String &getTitle() { return title; }
+
+    
+    void activateRadio();
 };
 
 class PCScreen : Screen, RunnableTask {

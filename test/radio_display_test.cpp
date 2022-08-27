@@ -9,7 +9,7 @@
 #include <RadioLib.h>
 #include <U8g2lib.h>
 
-U8G2_LS027B7DH01_400X240_F_4W_HW_SPI u8g2(U8G2_R1, /* cs=*/DISP_CS_PIN, /* dc=*/U8X8_PIN_NONE, /* reset=*/U8X8_PIN_NONE);
+// U8G2_LS027B7DH01_400X240_F_4W_HW_SPI u8g2(U8G2_R1, /* cs=*/DISP_CS_PIN, /* dc=*/U8X8_PIN_NONE, /* reset=*/U8X8_PIN_NONE);
 
 SX1276 radio(new Module(RADIO_CS_PIN, RADIO_DIO0_PIN, RADIO_RST_PIN, RADIO_DIO1_PIN, SPI, SPISettings(SPI_RADIO_FREQ, MSBFIRST, SPI_MODE0)));
 void beginReceive(void) { radio.startReceive(); }
@@ -29,19 +29,19 @@ class DisplayRadioTestTask : RadioAction, RunnableTask {
 
     void run(TIME_INT_t time) {
         if (boxX % 100 == 0) {
-            u8g2.setDrawColor(1);
-            u8g2.drawBox(10, 100, 80, 54);
-            u8g2.setDrawColor(0);
-            u8g2.setCursor(10, 100);
-            u8g2.print(boxX);
-            u8g2.setCursor(10, 116);
-            u8g2.print(boxY);
-            u8g2.setCursor(10, 132);
-            u8g2.print((long)(time - lastTime)/1000);
+            // u8g2.setDrawColor(1);
+            // u8g2.drawBox(10, 100, 80, 54);
+            // u8g2.setDrawColor(0);
+            // u8g2.setCursor(10, 100);
+            // u8g2.print(boxX);
+            // u8g2.setCursor(10, 116);
+            // u8g2.print(boxY);
+            // u8g2.setCursor(10, 132);
+            // u8g2.print((long)(time - lastTime)/1000);
             lastTime = time;
             boxY = 0;
             spiBlock = 1;
-            u8g2.sendBuffer();
+            // u8g2.sendBuffer();
         }
         if (spiBlock == 2)
             radioTask->interruptTriggered();
@@ -80,6 +80,7 @@ void radioInterrupt(void) {
 }
 
 void setup(void) {
+    delay(10000);
     // SPI.setSCK(SPI_CLK_PIN);
     SPI.begin();
     // PowerEnable pin must be enabled ASAP to keep system on after power is
@@ -90,28 +91,29 @@ void setup(void) {
     Serial.begin(921600);
 
     Serial.println("Display Starting ...");
-    u8g2.setBusClock(SPI_DISP_FREQ);
-    u8g2.begin();
-    u8g2.clearBuffer();
-    u8g2.setDrawColor(1);
-    u8g2.drawBox(0, 0, 240, 400);
-    u8g2.setDrawColor(0); // in order to make content visable
-    u8g2.setFont(u8g2_font_timB14_tr);
-    // u8g2.setFontRefHeightExtendedText();
-    u8g2.setFontPosTop();
-    // u8g2.setFontDirection(0);
+    // u8g2.setBusClock(SPI_DISP_FREQ);
+    // u8g2.begin();
+    // u8g2.clearBuffer();
+    // u8g2.setDrawColor(1);
+    // u8g2.drawBox(0, 0, 240, 400);
+    // u8g2.setDrawColor(0); // in order to make content visable
+    // u8g2.setFont(u8g2_font_timB14_tr);
+    // // u8g2.setFontRefHeightExtendedText();
+    // u8g2.setFontPosTop();
+    // // u8g2.setFontDirection(0);
 
-    u8g2.drawStr(0, 0, "Display Ready!");
-    u8g2.drawStr(0, 20, "Starting Radio ...");
-    u8g2.sendBuffer();
+    // u8g2.drawStr(0, 0, "Display Ready!");
+    // u8g2.drawStr(0, 20, "Starting Radio ...");
+    // u8g2.sendBuffer();
 
-    int state = radio.begin(RADIO_CARRIER_FREQ, RADIO_LINK_BANDWIDTH, RADIO_SPREADING_FACTOR,7,18,RADIO_POWER); //-23dBm
+    int state = radio.begin(915, 250, 9,7,18,17); //-23dBm
     if (state == RADIOLIB_ERR_NONE) {
         FDOS_LOG.println("success!");
     } else {
         FDOS_LOG.print("SX1276 failed. Code:");
         FDOS_LOG.println(state);
-        u8g2.drawStr(0, 40, "Radio Failed!");
+        // u8g2.drawStr(0, 40, "Radio Failed!");
+           // u8g2.sendBuffer();
         while (true) {
             digitalWrite(LED_PIN, true);
             delay(100);
@@ -122,8 +124,10 @@ void setup(void) {
     // set output power to 10 dBm (accepted range is -3 - 17 dBm)
     // NOTE: 20 dBm value allows high power operation, but transmission
     //       duty cycle MUST NOT exceed 1%
-    if (radio.setOutputPower(RADIO_POWER) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
+    if (radio.setOutputPower(17) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
         FDOS_LOG.println("Invalid Power!");
+        //   u8g2.drawStr(0, 40, "Invalid Power!");
+             // u8g2.sendBuffer();
         while (true) {
             digitalWrite(LED_PIN, true);
             delay(200);
@@ -137,8 +141,8 @@ void setup(void) {
     radio.setDio0Action(radioInterrupt);
     radio.setDio1Action(radioInterrupt);
 
-    u8g2.drawStr(0, 40, "Radio Ready!");
-
+    // u8g2.drawStr(0, 40, "Radio Ready!");
+   // u8g2.sendBuffer();
     delay(2000);
 
     digitalWrite(LED_PIN, false);

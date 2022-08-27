@@ -36,7 +36,7 @@ class JoyInput : public PhysicalInput {
 
   public:
     JoyInput(int _pinId, EEPROMField &minField, EEPROMField &mid1Field, EEPROMField &mid2Field, EEPROMField &maxField)
-        : min(minField.getValue()), mid1(mid1Field.getValue()), mid2(mid2Field.getValue()), max(maxField.getValue()),pinId(_pinId) {
+        : min(minField.getValue()), mid1(mid1Field.getValue()), mid2(mid2Field.getValue()), max(maxField.getValue()), pinId(_pinId) {
         analogReadResolution(ANALOG_READ_RESOLUTION);
         analogReadAveraging(ANALOG_READ_AVERAGING);
         pinMode(pinId, INPUT);
@@ -144,14 +144,21 @@ class InputSet {
     InputSet(uint8_t _inputCount) : inputCount(_inputCount), inputs(new PhysicalInput *[inputCount] { 0 }) {}
     ~InputSet() { delete inputs; }
 
-    bool update(bool mute);
+    bool update(TIME_INT_t time, bool mute);
 
     void addInput(PhysicalInput &input, uint8_t inputId);
 
     const uint8_t inputCount;
 
+    TIME_INT_t lastInputMicros(bool reset = false) {
+        if (reset)
+            inputTimeMicros = microsSinceEpoch();
+        return inputTimeMicros;
+    }
+
   private:
     PhysicalInput **inputs;
+    TIME_INT_t inputTimeMicros = 0;
 };
 
 #endif

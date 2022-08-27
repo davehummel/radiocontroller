@@ -1,6 +1,7 @@
 #include <RemoteDisplay.h>
 
 #include <FDOS_LOG.h>
+#include <SPILock.h>
 
 RemoteUI UI = RemoteUI();
 
@@ -16,27 +17,20 @@ void RemoteUI::run(TIME_INT_t time) {
 }
 
 void RemoteUI::requestDraw(bool immediate) {
-
     if (immediate) {
-        if (spiLock) {
+        uint16_t spiLockID = 0;
+        if (!SPILOCK.tryLock(spiLockID)) {
             redrawMissed = true;
             return;
         }
         display->sendBuffer();
+        SPILOCK.releaseLock(spiLockID);
         redrawNeeded = false;
     } else {
         redrawNeeded = true;
     }
 }
 
-void RemoteUI::setSPIBusy() { spiLock = true; }
-
-void RemoteUI::setSPIFree() {
-    spiLock = false;
-    if (redrawMissed) {
-        requestDraw(true);
-    }
-}
 
 void RemoteUI::illuminate(bool isOn){
     digitalWrite(DISPLAY_LIGHT_PIN,isOn);
