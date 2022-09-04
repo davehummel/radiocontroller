@@ -82,7 +82,7 @@ void drawHInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uin
     }
 }
 
-void drawVInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uint16_t val, uint16_t valMax, bool printVals) {
+void drawVInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uint16_t val, uint16_t valMax, bool printVals, bool printLeftSide = true) {
     UI.getDisplay()->setDrawColor(0);
     UI.getDisplay()->drawBox(topX, topY, width, size);
     UI.getDisplay()->setDrawColor(1);
@@ -91,7 +91,7 @@ void drawVInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uin
         UI.getDisplay()->setFont(u8g2_font_t0_14b_te);
         UI.getDisplay()->setFontDirection(1);
         UI.getDisplay()->setDrawColor(0);
-        UI.getDisplay()->setCursor(topX - 2, topY + (size - NUM_SIZE) / 2);
+        UI.getDisplay()->setCursor(printLeftSide ? topX - 2 : topX + width + 12, topY + (size - NUM_SIZE) / 2);
         UI.getDisplay()->printf("%04d", val);
         UI.getDisplay()->setFontDirection(0);
     }
@@ -1016,6 +1016,22 @@ void radioActivateListener() {
     }
 }
 
+void motorEngageListener() {
+    if (CONTROLS.button2.isPressed()) {
+        FLIGHT_SCREEN.toggleEngage(); // This function checks if throttle is zerod
+    }
+}
+
+void FlightScreen::toggleEngage() {
+    if (state == ENGAGED) {
+        state = CONNECTED;
+        sustainConnectionAction.setEngineEngaged(false);
+    } else if (CONTROLS.joy1V.getUnsignedValue() == 0) {
+        state = ENGAGED;
+        sustainConnectionAction.setEngineEngaged(true);
+    }
+}
+
 void FlightScreen::start() {
     link = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(250, FrequencyUnitEnum::milli));
 
@@ -1029,6 +1045,8 @@ void FlightScreen::start() {
 
     UI.getDisplay()->setDrawColor(1);
     UI.getDisplay()->drawBox(0, 25, 400, 215);
+
+    state = OFF;
 }
 void FlightScreen::stop() {
     RADIOTASK.removeAllActions();
@@ -1059,9 +1077,9 @@ void FlightScreen::run(TIME_INT_t time) {
         break;
     case SEARCHING:
         UI.getDisplay()->setDrawColor(1);
-        UI.getDisplay()->drawBox(0, 25, 400, 215);
+        UI.getDisplay()->drawBox(0, 50, 100, 215);
         UI.getDisplay()->setDrawColor(0);
-        switch (radioFindReceiverTask.state) {
+        switch (radioFindReceiverAction.state) {
         case FindReceiverAction::PINGING:
             switch ((time / 1000000) % 5) {
             case 0:
@@ -1080,16 +1098,57 @@ void FlightScreen::run(TIME_INT_t time) {
                 UI.getDisplay()->drawBox(20, 50, 40, 40);
                 break;
             }
-
+            UI.requestDraw();
             break;
+        case FindReceiverAction::CONNECTED:
+            state = CONNECTED;
         default:
             return;
         }
-        UI.requestDraw();
+
         break;
     case CONNECTED:
+        UI.getDisplay()->setDrawColor(1);
+        UI.getDisplay()->drawBox(0, 25, 400, 215);
+        UI.getDisplay()->setDrawColor(0);
+
+        UI.getDisplay()->setCursor(5, 160);
+        UI.getDisplay()->setFont(u8g2_font_helvR14_tr);
+        UI.getDisplay()->print("Zero Throttle and press button to engage motors");
+
+        drawInputs();
+        drawReceiverStats();
+        drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", CONTROLS.joy1V.getUnsignedValue() == 0 ? "Engage" : EMPTY, "Disconnect");
+        CONTROLS.button2.setLEDValue(CONTROLS.joy1V.getUnsignedValue() == 0 ? 255 : 0);
+        CONTROLS.button1.setLEDValue(255);
+        UI.requestDraw();
         break;
+    case ENGAGED:
+        UI.getDisplay()->setDrawColor(1);
+        UI.getDisplay()->drawBox(0, 25, 400, 215);
+        UI.getDisplay()->setDrawColor(0);
+        drawInputs();
+        drawReceiverStats();
+        drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", "Disengage", "Disconnect");
+        CONTROLS.button2.setLEDValue(255);
+        CONTROLS.button1.setLEDValue(255);
+        UI.requestDraw();
     }
+}
+
+void FlightScreen::drawInputs() {
+    drawXYInput(0, 25, 100, CONTROLS.joy2H.getUnsignedValue(), CONTROLS.joy2V.getUnsignedValue(), 255, true);
+    drawHInput(0, 127, 100, 10, CONTROLS.joy1H.getUnsignedValue(), 255, true);
+    drawVInput(102, 25, 100, 10, CONTROLS.joy1V.getUnsignedValue(), 255, true, false);
+}
+
+void FlightScreen::drawReceiverStats() {
+    UI.getDisplay()->setDrawColor(0);
+    UI.getDisplay()->setFont(u8g2_font_chargen_92_tr);
+    UI.getDisplay()->setCursor(140, 30);
+    receiver_heartbeat_t hb;
+    sustainConnectionAction.getLastReceivedHB(hb);
+    UI.getDisplay()->printf("rx:%i%% tx:%i%% bat:%i",hb.snr,(int16_t)RADIO.getSNR()*10,hb.batV);
 }
 
 void FlightScreen::activateRadio() {
@@ -1145,7 +1204,7 @@ void FlightScreen::activateRadio() {
     UI.requestDraw(true);
     delay(500);
     state = SEARCHING;
-    RADIOTASK.addAction((RadioAction *)&radioFindReceiverTask);
+    RADIOTASK.addAction((RadioAction *)&radioFindReceiverAction);
     return;
 }
 

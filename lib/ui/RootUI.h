@@ -18,21 +18,18 @@ class RootUI : RunnableTask {
     ScheduledLink *link = NULL;
 
     uint8_t batteryPercent = 0;
-    int8_t ctrlRX = 0, clientRX = 0;
 
     Screen *currentScreen = NULL;
 
     bool underlayRendered = false;
     bool titleRendered = false;
     bool batteryRendered = false;
-    bool radioRendered = false;
 
     uint8_t redrawCounter = 0;
 
     void renderUnderlay();
     void renderTitle();
     void renderTime();
-    void renderRadio();
     void renderBattery();
 
   public:
@@ -72,13 +69,6 @@ class RootUI : RunnableTask {
         batteryRendered = false;
     }
 
-    void setRadioSignal(uint8_t newCtrlRX, uint8_t newClientRX) {
-        if (newClientRX == clientRX && newCtrlRX == ctrlRX)
-            return;
-        ctrlRX = newCtrlRX;
-        clientRX = newClientRX;
-        radioRendered = false;
-    }
 };
 
 extern RootUI ROOT_UI;

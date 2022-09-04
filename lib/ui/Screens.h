@@ -88,9 +88,12 @@ class FlightScreen : Screen, RunnableTask {
   private:
     String title = "Flight Control";
 
-    enum FlightScreenState { OFF, SEARCHING, CONNECTED } state = OFF;
+    enum FlightScreenState { OFF, SEARCHING, CONNECTED , ENGAGED } state = OFF;
 
     ScheduledLink *link = NULL;
+
+    void drawInputs();
+    void drawReceiverStats();
 
   public:
     void start();
@@ -102,6 +105,7 @@ class FlightScreen : Screen, RunnableTask {
 
     
     void activateRadio();
+    void toggleEngage();
 };
 
 class PCScreen : Screen, RunnableTask {
