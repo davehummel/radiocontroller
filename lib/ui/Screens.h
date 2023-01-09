@@ -88,7 +88,7 @@ class FlightScreen : Screen, RunnableTask {
   private:
     String title = "Flight Control";
 
-    enum FlightScreenState { OFF, SEARCHING, CONNECTED , ENGAGED } state = OFF;
+    enum FlightScreenState { OFF, SEARCHING, CONNECTED , ENGAGED,PAUSED } state = OFF;
 
     ScheduledLink *link = NULL;
 
@@ -104,7 +104,7 @@ class FlightScreen : Screen, RunnableTask {
     String &getTitle() { return title; }
 
     
-    void activateRadio();
+    void toggleRadio();
     void toggleEngage();
 };
 

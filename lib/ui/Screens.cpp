@@ -454,7 +454,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), getLocalMinute(now), getLocalSecond(now), getLocalDay(now), month, getLocalYear(now));
-        CONTROLS.lastInputMicros(true);
+        // CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -498,7 +498,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), getLocalMinute(now), getLocalSecond(now), day, getLocalMonth(now), getLocalYear(now));
-        CONTROLS.lastInputMicros(true);
+        // CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -538,7 +538,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), getLocalMinute(now), getLocalSecond(now), getLocalDay(now), getLocalMonth(now), year);
-        CONTROLS.lastInputMicros(true);
+        // CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -578,7 +578,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(hour, getLocalMinute(now), getLocalSecond(now), getLocalDay(now), getLocalMonth(now), getLocalYear(now));
-        CONTROLS.lastInputMicros(true);
+        // CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -618,7 +618,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), min, getLocalSecond(now), getLocalDay(now), getLocalMonth(now), getLocalYear(now));
-        CONTROLS.lastInputMicros(true);
+        // CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -660,7 +660,7 @@ class : public SettingField {
             return;
         TIME_INT_t now = microsSinceEpoch();
         setTimeManual(getLocalHour(now), getLocalMinute(now), sec, getLocalDay(now), getLocalMonth(now), getLocalYear(now));
-        CONTROLS.lastInputMicros(true);
+        // CONTROLS.lastInputMicros(true);
         modified = false;
     };
 
@@ -1012,7 +1012,7 @@ void SettingsScreen::run(TIME_INT_t time) {
 
 void radioActivateListener() {
     if (CONTROLS.button1.isPressed()) {
-        FLIGHT_SCREEN.activateRadio();
+        FLIGHT_SCREEN.toggleRadio();
     }
 }
 
@@ -1026,7 +1026,7 @@ void FlightScreen::toggleEngage() {
     if (state == ENGAGED) {
         state = CONNECTED;
         sustainConnectionAction.setEngineEngaged(false);
-    } else if (CONTROLS.joy1V.getUnsignedValue() == 0) {
+    } else if (state == CONNECTED && CONTROLS.joy1V.getUnsignedValue() == 0) {
         state = ENGAGED;
         sustainConnectionAction.setEngineEngaged(true);
     }
@@ -1037,6 +1037,7 @@ void FlightScreen::start() {
 
     CONTROLS.button1.setLEDValue(255);
     CONTROLS.button1.subscribe(radioActivateListener);
+    CONTROLS.button2.subscribe(motorEngageListener);
     CONTROLS.wheelBtn.subscribe(navEnableButtonListener);
     CONTROLS.joy1H.setHalfRange(127);
     CONTROLS.joy1V.setHalfRange(127);
@@ -1053,14 +1054,20 @@ void FlightScreen::stop() {
 
     CONTROLS.wheelBtn.unsubscribe(navEnableButtonListener);
     CONTROLS.button1.unsubscribe(radioActivateListener);
+    CONTROLS.button2.unsubscribe(motorEngageListener);
     link->cancel();
 }
 
 void FlightScreen::run(TIME_INT_t time) {
     switch (state) {
     case OFF:
+    case PAUSED:
+        analogWrite(LED_R_PIN, 3);
+        analogWrite(LED_G_PIN, 4);
+        analogWrite(LED_R_PIN, 3);
+
         UI.getDisplay()->setDrawColor(1);
-        UI.getDisplay()->drawBox(0, 25, 400, 25);
+        UI.getDisplay()->drawBox(0, 25, 400, 215);
         UI.getDisplay()->setDrawColor(0);
 
         UI.getDisplay()->setCursor(5, 26);
@@ -1075,13 +1082,17 @@ void FlightScreen::run(TIME_INT_t time) {
         drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", EMPTY, "Activate");
         UI.requestDraw();
         break;
-    case SEARCHING:
+    case SEARCHING: {
         UI.getDisplay()->setDrawColor(1);
-        UI.getDisplay()->drawBox(0, 50, 100, 215);
+        UI.getDisplay()->drawBox(0, 50, 400, 215);
         UI.getDisplay()->setDrawColor(0);
+        uint8_t step = (time / 1000000) % 5;
+        analogWrite(LED_R_PIN, 1);
+        analogWrite(LED_B_PIN, 10 * (step % 2));
+        analogWrite(LED_G_PIN, 1);
         switch (radioFindReceiverAction.state) {
         case FindReceiverAction::PINGING:
-            switch ((time / 1000000) % 5) {
+            switch (step) {
             case 0:
                 UI.getDisplay()->drawTriangle(20, 50, 60, 50, 40, 70);
                 break;
@@ -1098,6 +1109,7 @@ void FlightScreen::run(TIME_INT_t time) {
                 UI.getDisplay()->drawBox(20, 50, 40, 40);
                 break;
             }
+            drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", EMPTY, EMPTY);
             UI.requestDraw();
             break;
         case FindReceiverAction::CONNECTED:
@@ -1105,16 +1117,22 @@ void FlightScreen::run(TIME_INT_t time) {
         default:
             return;
         }
-
         break;
+    }
     case CONNECTED:
+        if (!sustainConnectionAction.isConnected()) {
+            FDOS_LOG.println("Sustained connection dropped, freeing radio");
+            toggleRadio();
+            return;
+        }
         UI.getDisplay()->setDrawColor(1);
         UI.getDisplay()->drawBox(0, 25, 400, 215);
         UI.getDisplay()->setDrawColor(0);
+        UI.getDisplay()->setDrawColor(0);
 
-        UI.getDisplay()->setCursor(5, 160);
+        UI.getDisplay()->setCursor(50, 160);
         UI.getDisplay()->setFont(u8g2_font_helvR14_tr);
-        UI.getDisplay()->print("Zero Throttle and press button to engage motors");
+        UI.getDisplay()->print(CONTROLS.joy1V.getUnsignedValue() == 0 ? "Ready!" : "Zero Throttle before engaging");
 
         drawInputs();
         drawReceiverStats();
@@ -1130,7 +1148,7 @@ void FlightScreen::run(TIME_INT_t time) {
         drawInputs();
         drawReceiverStats();
         drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", "Disengage", "Disconnect");
-        CONTROLS.button2.setLEDValue(255);
+        CONTROLS.button2.setLEDValue(abs((microsSinceEpoch() / 5000) % 255 - 128) * 2);
         CONTROLS.button1.setLEDValue(255);
         UI.requestDraw();
     }
@@ -1144,67 +1162,76 @@ void FlightScreen::drawInputs() {
 
 void FlightScreen::drawReceiverStats() {
     UI.getDisplay()->setDrawColor(0);
-    UI.getDisplay()->setFont(u8g2_font_chargen_92_tr);
-    UI.getDisplay()->setCursor(140, 30);
+    UI.getDisplay()->setCursor(200, 28);
     receiver_heartbeat_t hb;
     sustainConnectionAction.getLastReceivedHB(hb);
-    UI.getDisplay()->printf("rx:%i%% tx:%i%% bat:%i",hb.snr,(int16_t)RADIO.getSNR()*10,hb.batV);
+    UI.getDisplay()->setFont(u8g2_font_10x20_tr);
+    UI.getDisplay()->printf("rx:%i%% tx:%i%% bat:%i", hb.snr, (int16_t)RADIO.getSNR() * 10, hb.batV);
 }
 
-void FlightScreen::activateRadio() {
-    if (state != OFF)
-        return;
-
-    CONTROLS.button1.setLEDValue(0);
-
-    UI.getDisplay()->setFont(u8g2_font_t0_14b_te);
-    UI.getDisplay()->setCursor(20, 50);
-
-    UI.getDisplay()->print("Starting Radio ");
-    UI.requestDraw(true);
-
-    delay(250);
-
-    float linkBW = 500;
-    switch (field_radio_Linkbw.getValue().u8) {
-    case 0:
-        linkBW = 100;
-        break;
-    case 1:
-        linkBW = 250;
-        break;
-    case 2:
-        linkBW = 500;
-        break;
-    }
-    int rstate = RADIO.begin(field_radio_Freq.getValue().f, linkBW, field_radio_SpreadingFactor.getValue().u8, field_radio_CodingRate.getValue().u8);
-
-    if (rstate == RADIOLIB_ERR_NONE) {
-        UI.getDisplay()->println("...");
-        UI.requestDraw(true);
-    } else {
-        UI.getDisplay()->print("SX1276 Init failed. Code:");
-        UI.getDisplay()->println(rstate);
-        UI.requestDraw(true);
-        digitalWrite(LED_R_PIN, 1);
-        delay(5000);
-        POWER.powerDown();
+void FlightScreen::toggleRadio() {
+    if (state == PAUSED) {
+        FDOS_LOG.println("Unpausing");
+        state = SEARCHING;
+        RADIOTASK.addAction((RadioAction *)&radioFindReceiverAction);
         return;
     }
+    if (state == OFF) {
+        UI.getDisplay()->setFont(u8g2_font_t0_14b_te);
+        UI.getDisplay()->setCursor(20, 50);
 
-    if (RADIO.setOutputPower(field_radio_Power.getValue().u8) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
-        UI.getDisplay()->println("Invalid Power Setting.");
+        UI.getDisplay()->print("Starting Radio ");
         UI.requestDraw(true);
-        delay(5000);
-        digitalWrite(LED_R_PIN, 1);
-        POWER.powerDown();
+
+        delay(250);
+
+        float linkBW = 500;
+        switch (field_radio_Linkbw.getValue().u8) {
+        case 0:
+            linkBW = 100;
+            break;
+        case 1:
+            linkBW = 250;
+            break;
+        case 2:
+            linkBW = 500;
+            break;
+        }
+        int rstate = RADIO.begin(field_radio_Freq.getValue().f, linkBW, field_radio_SpreadingFactor.getValue().u8, field_radio_CodingRate.getValue().u8);
+
+        if (rstate == RADIOLIB_ERR_NONE) {
+            UI.getDisplay()->println("...");
+            UI.requestDraw(true);
+        } else {
+            UI.getDisplay()->print("SX1276 Init failed. Code:");
+            UI.getDisplay()->println(rstate);
+            UI.requestDraw(true);
+            digitalWrite(LED_R_PIN, 1);
+            delay(5000);
+            POWER.powerDown();
+            return;
+        }
+
+        if (RADIO.setOutputPower(field_radio_Power.getValue().u8) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
+            UI.getDisplay()->println("Invalid Power Setting.");
+            UI.requestDraw(true);
+            delay(5000);
+            digitalWrite(LED_R_PIN, 1);
+            POWER.powerDown();
+            return;
+        }
+        UI.getDisplay()->println("Started!");
+        UI.requestDraw(true);
+        delay(500);
+        state = SEARCHING;
+        RADIOTASK.addAction((RadioAction *)&radioFindReceiverAction);
         return;
     }
-    UI.getDisplay()->println("Started!");
-    UI.requestDraw(true);
-    delay(500);
-    state = SEARCHING;
-    RADIOTASK.addAction((RadioAction *)&radioFindReceiverAction);
+    FDOS_LOG.println("Pausing");
+    CONTROLS.button1.setLEDValue(255);
+    CONTROLS.button2.setLEDValue(0);
+    state = PAUSED;
+    RADIOTASK.removeAllActions();
     return;
 }
 

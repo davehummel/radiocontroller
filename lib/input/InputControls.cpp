@@ -1,3 +1,4 @@
+#include <FDOS_LOG.h>
 #include <InputControls.h>
 
 bool PhysicalInput::update(bool mute) {
@@ -35,6 +36,16 @@ void PhysicalInput::unsubscribe(FunctionPointer func) {
     }
 }
 
+bool JoyInput::activeInput() {
+
+    if (abs(unsignedValue - halfRange) < halfRange / 16) {
+        return false;
+    }
+
+    return !noCenter;
+
+} // Disable activity feedback for joysticks that have no center point (they will keep changing due to noise)
+
 bool JoyInput::innerUpdate() {
     rawValue = analogRead(pinId);
     uint16_t prevUnsignedValue = unsignedValue;
@@ -51,7 +62,8 @@ bool JoyInput::innerUpdate() {
     }
     if (inverted)
         unsignedValue = fullRange - unsignedValue;
-    return abs(unsignedValue - prevUnsignedValue) > halfRange / 10;
+    // FDOS_LOG.printf("v %d p_v %d dif %d thr %d\n", unsignedValue, prevUnsignedValue, abs(unsignedValue - prevUnsignedValue), halfRange / 10);
+    return abs(unsignedValue - prevUnsignedValue) > halfRange / 64;
 }
 
 int16_t JoyInput::getSignedValue() { return unsignedValue - halfRange; }
@@ -113,16 +125,20 @@ uint16_t MultiVButton::getRawValue() { return rawValue; }
 
 bool InputSet::update(TIME_INT_t time, bool mute) {
     bool anyUpdates = false;
+    bool activeInput = false;
     // mask = 0;
     for (uint8_t i = 0; i < inputCount; i++) {
         if (inputs[i] == NULL)
             continue;
         bool updated = inputs[i]->update(mute);
         anyUpdates |= updated;
-        // mask |= updated << i;
+        if (updated) {
+            bool active = inputs[i]->activeInput();
+            activeInput |= active;
+        }
     }
-    if (anyUpdates || inputTimeMicros == 0) {
-        inputTimeMicros = time;
+    if (activeInput || inputTimeMicros == 0) {
+        inputTimeMicros = micros64();
     }
     return anyUpdates;
 }

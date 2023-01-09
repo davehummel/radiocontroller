@@ -1,4 +1,5 @@
 #include "PowerControl.h"
+#include "RemoteControlInputs.h"
 #include "SettingsStore.h"
 
 Power POWER(HOLD_POWER_ENABLE_PIN, POWER_BUTTON_SENSE_PIN, BATTERY_SENSE_PIN, ENABLE_BATTERY_SENSE_PIN);
@@ -60,8 +61,6 @@ void Power::onShutdownUnsubscribe(FunctionPointer listener) {
 float Power::getBatteryVoltage() {
     digitalWrite(enBatSensePin, HIGH);
     uint16_t raw = analogRead(batSensePin);
-    FDOS_LOG.println(raw);
-
     return raw / BATTERY_VLT_FACTOR;
 }
 
@@ -108,9 +107,9 @@ void Power::run(TIME_INT_t time) {
         }
         powerDown();
         return;
-    }
+    } 
 
-    if (microsSinceEpoch() - CONTROLS.lastInputMicros() > field_AutoOff_Min.getValue().u8 * MICROS_PER_MINUTE && CONTROLS.lastInputMicros() > 0) {
+    if (micros64() - CONTROLS.lastInputMicros() > field_AutoOff_Min.getValue().u8 * MICROS_PER_MINUTE && CONTROLS.lastInputMicros() > 0) {
         for (uint8_t i = 0; i < 30; i++) {
             delay(50);
             analogWrite(LED_R_PIN, i);

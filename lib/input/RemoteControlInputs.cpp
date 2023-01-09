@@ -10,6 +10,7 @@ RemoteControlInputSet::RemoteControlInputSet()
       button4(BTN4_PRESS_PIN, BTN4_LED_PIN), button5(BTN5_PRESS_PIN, BTN5_LED_PIN) {
     joy1H.inverted = true;
     joy1V.inverted = true;
+    joy1V.noCenter = true;
     addInput(joy1H, 0);
     addInput(joy1V, 1);
     addInput(joy2H, 2);

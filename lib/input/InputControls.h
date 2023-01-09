@@ -18,6 +18,9 @@ class PhysicalInput {
 
     void unsubscribe(FunctionPointer func);
 
+    // This function is used to identify hands on activation to keep the device awake (vs noise from a joystick, etc..)
+    virtual bool activeInput() { return true; }
+
     virtual ~PhysicalInput() {}
 
   protected:
@@ -44,6 +47,9 @@ class JoyInput : public PhysicalInput {
     }
 
     bool inverted = false;
+    bool noCenter = false;
+
+    bool activeInput(); // Disable activity feedback for joysticks that have no center point (they will keep changing due to noise)
 
     void setHalfRange(uint16_t _halfRange) {
         halfRange = _halfRange;
@@ -150,9 +156,7 @@ class InputSet {
 
     const uint8_t inputCount;
 
-    TIME_INT_t lastInputMicros(bool reset = false) {
-        if (reset)
-            inputTimeMicros = microsSinceEpoch();
+    TIME_INT_t lastInputMicros() {
         return inputTimeMicros;
     }
 

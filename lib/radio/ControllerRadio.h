@@ -36,6 +36,8 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     bool motorsEngaged = false;
 
+    bool directPitch = true, directYaw = true, directRoll = true;
+
   public:
     bool shouldRequestResponse();
 
@@ -55,10 +57,35 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     void disconnect();
 
-    void setEngineEngaged(bool engaged) { motorsEngaged = engaged; }
+    void setEngineEngaged(bool engaged);
+
+    void setDirectPitch(bool directEnabled) { directPitch = directEnabled; }
+    void setDirectYaw(bool directEnabled) { directYaw = directEnabled; }
+    void setDirectRoll(bool directEnabled) { directRoll = directEnabled; }
+};
+
+class TransmitCommandAction : RadioAction, RunnableTask {
+  private:
+    ScheduledLink *cancel = NULL;
+
+    bool inputChanged = true;
+
+  public:
+    void onStart();
+
+    void onStop();
+
+    void onReceive(uint8_t length, uint8_t *data, bool responseExpected);
+
+    uint8_t onSendReady(uint8_t *data, bool &responseExpected);
+
+    void run(TIME_INT_t time);
+
+    void changed() { inputChanged = true; }
 };
 
 extern FindReceiverAction radioFindReceiverAction;
 extern SustainConnectionAction sustainConnectionAction;
+extern TransmitCommandAction transmitCommandAction;
 
 #endif
