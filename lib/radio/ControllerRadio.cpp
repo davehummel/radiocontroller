@@ -132,7 +132,7 @@ void SustainConnectionAction::run(TIME_INT_t time) {
         analogWrite(LED_R_PIN, 2);
         analogWrite(LED_B_PIN, 2);
         analogWrite(LED_G_PIN, 255);
-        delay(100);
+        tone(SND_OUTPUT_PIN, 1000, 50);
         requestSend();
         lastContactSentTime = time;
         return;
@@ -153,7 +153,6 @@ bool SustainConnectionAction::shouldRequestResponse() {
     TIME_INT_t time = microsSinceEpoch();
     if (time - lastContactSentTime > TRANSMITTER_HB_MIN_MICROS) {
         lastContactSentTime = time;
-
         return true;
     }
     return false;
@@ -163,19 +162,20 @@ uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpect
     if (connected) {
         responseExpected = true;
         transmitter_heartbeat_t hb(motorsEngaged, directPitch, directYaw, directRoll);
+        FDOS_LOG.printf("Direct S:%i P:%i Y:%i R:%i\n",hb.PIDMode,hb.isDirectPitch(),hb.isDirectRoll(), hb.isDirectYaw() );
+        FDOS_LOG.printf("Direct P:%i Y:%i R:%i\n",directPitch,directRoll, directYaw );
         RADIOTASK.mute(TRANSMITTER_HB_ECHO_DELAY_MILLIS);
-        FDOS_LOG.println("Pausing");
         msgToBytes(&hb, data, transmitter_heartbeat_t::size);
         analogWrite(LED_R_PIN, 2);
         analogWrite(LED_B_PIN, 2);
         analogWrite(LED_G_PIN, 5);
-        return 2;
+        return transmitter_heartbeat_t::size;
     } else {
         FDOS_LOG.println("Sending disconnect message");
         data[0] = TRANSMITTER_DISCONNECT;
         data[1] = TRANSMITTER_ID;
         responseExpected = false;
-        return 2;
+        return 3;
     }
 }
 
@@ -211,6 +211,7 @@ void SustainConnectionAction::setEngineEngaged(bool engaged) {
     motorsEngaged = engaged;
     if (engaged) {
         RADIOTASK.addAction((RadioAction *)&transmitCommandAction);
+        requestSend();
     } else {
         RADIOTASK.removeAction((RadioAction *)&transmitCommandAction);
     }
@@ -218,7 +219,6 @@ void SustainConnectionAction::setEngineEngaged(bool engaged) {
 
 void flightInputListener() {
     transmitCommandAction.changed();
-    FDOS_LOG.print('>');
 }
 
 void TransmitCommandAction::onStart() {
@@ -231,7 +231,6 @@ void TransmitCommandAction::onStart() {
     CONTROLS.joy2H.subscribe(flightInputListener);
     CONTROLS.joy2V.subscribe(flightInputListener);
 
-    FDOS_LOG.println("Transmit Action starting...");
 }
 
 void TransmitCommandAction::onStop() {
@@ -251,15 +250,9 @@ void TransmitCommandAction::run(TIME_INT_t time) {
     if (inputChanged) {
         requestSend();
         inputChanged = false;
-        if (sustainConnectionAction.shouldRequestResponse()) {
-            analogWrite(LED_R_PIN, 2);
-            analogWrite(LED_B_PIN, 2);
-            analogWrite(LED_G_PIN, 255);
-        } else {
-            analogWrite(LED_R_PIN, 200);
-            analogWrite(LED_B_PIN, 200);
-            analogWrite(LED_G_PIN, 2);
-        }
+        analogWrite(LED_R_PIN, 200);
+        analogWrite(LED_B_PIN, 200);
+        analogWrite(LED_G_PIN, 2);
     } else {
         analogWrite(LED_R_PIN, 2);
         analogWrite(LED_B_PIN, 8);
@@ -272,15 +265,15 @@ void TransmitCommandAction::onReceive(uint8_t length, uint8_t *data, bool respon
 uint8_t TransmitCommandAction::onSendReady(uint8_t *data, bool &responseExpected) {
     responseExpected = sustainConnectionAction.shouldRequestResponse();
     if (responseExpected) {
+        tone(SND_OUTPUT_PIN, 600, 50);
         RADIOTASK.mute(TRANSMITTER_HB_ECHO_DELAY_MILLIS);
-        FDOS_LOG.println("Pausing");
     }
 
     flight_input_t flightInput;
     flightInput.throttleInput = CONTROLS.joy1V.getUnsignedValue();
-    flightInput.rollInput = CONTROLS.joy2H.getSignedValue();
-    flightInput.pitchInput = CONTROLS.joy2V.getSignedValue();
-    flightInput.yawInput = CONTROLS.joy1H.getSignedValue();
+    flightInput.slideH = CONTROLS.joy1H.getSignedValue();
+    flightInput.joyV = CONTROLS.joy2V.getSignedValue();
+    flightInput.joyH = CONTROLS.joy2H.getSignedValue();
     msgToBytes(&flightInput, data, flight_input_t::size);
     return (flight_input_t::size);
 }

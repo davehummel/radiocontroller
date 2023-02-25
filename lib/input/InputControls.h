@@ -14,9 +14,9 @@ class PhysicalInput {
     bool update(bool mute);
     bool hasChanged() { return changed; }
 
-    void subscribe(FunctionPointer func);
+    bool subscribe(FunctionPointer func);
 
-    void unsubscribe(FunctionPointer func);
+    bool unsubscribe(FunctionPointer func);
 
     // This function is used to identify hands on activation to keep the device awake (vs noise from a joystick, etc..)
     virtual bool activeInput() { return true; }
@@ -36,6 +36,8 @@ class JoyInput : public PhysicalInput {
 
   private:
     EEPROMField::generic_val_t &min, &mid1, &mid2, &max;
+
+    uint16_t prevUnsignedValue;
 
   public:
     JoyInput(int _pinId, EEPROMField &minField, EEPROMField &mid1Field, EEPROMField &mid2Field, EEPROMField &maxField)

@@ -15,16 +15,17 @@ bool PhysicalInput::update(bool mute) {
     return changed;
 }
 
-void PhysicalInput::subscribe(FunctionPointer func) {
+bool PhysicalInput::subscribe(FunctionPointer func) {
     for (uint8_t i = 0; i < MAX_LISTENERS; i++) {
         if (listeners[i] == NULL) {
             listeners[i] = func;
-            return;
+            return true;
         }
     }
+    return false;
 }
 
-void PhysicalInput::unsubscribe(FunctionPointer func) {
+bool PhysicalInput::unsubscribe(FunctionPointer func) {
     bool found = false;
     for (uint8_t i = 0; i < MAX_LISTENERS; i++) {
         if (found) {
@@ -34,6 +35,7 @@ void PhysicalInput::unsubscribe(FunctionPointer func) {
             found = true;
         }
     }
+    return found;
 }
 
 bool JoyInput::activeInput() {
@@ -48,7 +50,7 @@ bool JoyInput::activeInput() {
 
 bool JoyInput::innerUpdate() {
     rawValue = analogRead(pinId);
-    uint16_t prevUnsignedValue = unsignedValue;
+
     if (rawValue <= min.u16) {
         unsignedValue = 0;
     } else if (rawValue >= max.u16) {
@@ -63,7 +65,12 @@ bool JoyInput::innerUpdate() {
     if (inverted)
         unsignedValue = fullRange - unsignedValue;
     // FDOS_LOG.printf("v %d p_v %d dif %d thr %d\n", unsignedValue, prevUnsignedValue, abs(unsignedValue - prevUnsignedValue), halfRange / 10);
-    return abs(unsignedValue - prevUnsignedValue) > halfRange / 64;
+    if (abs(unsignedValue - prevUnsignedValue) > halfRange / 64){
+        prevUnsignedValue = unsignedValue;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 int16_t JoyInput::getSignedValue() { return unsignedValue - halfRange; }

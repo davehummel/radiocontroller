@@ -59,9 +59,13 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     void setEngineEngaged(bool engaged);
 
-    void setDirectPitch(bool directEnabled) { directPitch = directEnabled; }
-    void setDirectYaw(bool directEnabled) { directYaw = directEnabled; }
-    void setDirectRoll(bool directEnabled) { directRoll = directEnabled; }
+    void setDirectPitch(bool directEnabled) { directPitch = directEnabled; requestSend(); }
+    void setDirectYaw(bool directEnabled) { directYaw = directEnabled; requestSend();}
+    void setDirectRoll(bool directEnabled) { directRoll = directEnabled; requestSend();}
+
+    bool getDirectPitch() { return directPitch; }
+    bool getDirectYaw() { return directYaw; }
+    bool getDirectRoll() { return directRoll; }
 };
 
 class TransmitCommandAction : RadioAction, RunnableTask {

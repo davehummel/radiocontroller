@@ -5,40 +5,51 @@
 
 String EMPTY = "";
 
-void drawNavMenu(String b1 = EMPTY, String b2 = EMPTY, String b3 = EMPTY, String bCirc = EMPTY, String b4 = EMPTY, String b5 = EMPTY) {
+void drawNavMenu(String b5 = EMPTY, String b4 = EMPTY, String b3 = EMPTY, String bCirc = EMPTY, String b2 = EMPTY, String b1 = EMPTY, bool b5Toggle = false,
+                 bool b4Toggle = false, bool b3Toggle = false, bool b2Toggle = false, bool b1Toggle = false) {
     UI.getDisplay()->setDrawColor(1);
     UI.getDisplay()->drawBox(24, 190, 352, 50);
     UI.getDisplay()->setDrawColor(0);
     UI.getDisplay()->setFont(u8g2_font_t0_14b_te);
 
     UI.getDisplay()->drawCircle(40, 215, 10);
-    if (b1 != EMPTY) {
-        uint16_t w = UI.getDisplay()->getStrWidth(b1.c_str());
-        UI.getDisplay()->drawStr(40 - w / 2, 190, b1.c_str());
+    if (b5Toggle)
+        UI.getDisplay()->drawDisc(40, 215, 7);
+    if (b5 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b5.c_str());
+        UI.getDisplay()->drawStr(40 - w / 2, 190, b5.c_str());
     }
 
     UI.getDisplay()->drawCircle(90, 202, 10);
-    if (b2 != EMPTY) {
-        uint16_t w = UI.getDisplay()->getStrWidth(b2.c_str());
-        UI.getDisplay()->drawStr(90 - w / 2, 217, b2.c_str());
+    if (b4Toggle)
+        UI.getDisplay()->drawDisc(90, 202, 7);
+    if (b4 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b4.c_str());
+        UI.getDisplay()->drawStr(90 - w / 2, 217, b4.c_str());
     }
 
     UI.getDisplay()->drawCircle(140, 215, 10);
+    if (b3Toggle)
+        UI.getDisplay()->drawDisc(140, 215, 7);
     if (b3 != EMPTY) {
         uint16_t w = UI.getDisplay()->getStrWidth(b3.c_str());
         UI.getDisplay()->drawStr(140 - w / 2, 190, b3.c_str());
     }
 
     UI.getDisplay()->drawCircle(290, 202, 10);
-    if (b4 != EMPTY) {
-        uint16_t w = UI.getDisplay()->getStrWidth(b4.c_str());
-        UI.getDisplay()->drawStr(290 - w / 2, 217, b4.c_str());
+    if (b2Toggle)
+        UI.getDisplay()->drawDisc(290, 202, 7);
+    if (b2 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b2.c_str());
+        UI.getDisplay()->drawStr(290 - w / 2, 217, b2.c_str());
     }
 
     UI.getDisplay()->drawCircle(340, 215, 10);
-    if (b5 != EMPTY) {
-        uint16_t w = UI.getDisplay()->getStrWidth(b5.c_str());
-        UI.getDisplay()->drawStr(340 - w / 2, 190, b5.c_str());
+    if (b1Toggle)
+        UI.getDisplay()->drawDisc(340, 215, 7);
+    if (b1 != EMPTY) {
+        uint16_t w = UI.getDisplay()->getStrWidth(b1.c_str());
+        UI.getDisplay()->drawStr(340 - w / 2, 190, b1.c_str());
     }
 
     UI.getDisplay()->drawDisc(200, 212, 6);
@@ -1022,13 +1033,37 @@ void motorEngageListener() {
     }
 }
 
+void toggleDirPitch() {
+    if (CONTROLS.button3.isPressed()) {
+        sustainConnectionAction.setDirectPitch(!sustainConnectionAction.getDirectPitch());
+    }
+}
+
+void toggleDirRoll() {
+    if (CONTROLS.button4.isPressed()) {
+        sustainConnectionAction.setDirectRoll(!sustainConnectionAction.getDirectRoll());
+    }
+}
+
+void toggleDirYaw() {
+    if (CONTROLS.button5.isPressed()) {
+        sustainConnectionAction.setDirectYaw(!sustainConnectionAction.getDirectYaw());
+    }
+}
+
 void FlightScreen::toggleEngage() {
     if (state == ENGAGED) {
         state = CONNECTED;
         sustainConnectionAction.setEngineEngaged(false);
+        CONTROLS.button3.unsubscribe(toggleDirPitch);
+        CONTROLS.button4.unsubscribe(toggleDirRoll);
+        CONTROLS.button5.unsubscribe(toggleDirYaw);
     } else if (state == CONNECTED && CONTROLS.joy1V.getUnsignedValue() == 0) {
         state = ENGAGED;
         sustainConnectionAction.setEngineEngaged(true);
+        CONTROLS.button3.subscribe(toggleDirPitch);
+        CONTROLS.button4.subscribe(toggleDirRoll);
+        CONTROLS.button5.subscribe(toggleDirYaw);
     }
 }
 
@@ -1072,11 +1107,11 @@ void FlightScreen::run(TIME_INT_t time) {
 
         UI.getDisplay()->setCursor(5, 26);
         UI.getDisplay()->setFont(u8g2_font_helvR14_tr);
-        UI.getDisplay()->print("Lora Channel : ");
+        UI.getDisplay()->print("Lora Channel: ");
         UI.getDisplay()->setFont(u8g2_font_helvB14_tr);
         UI.getDisplay()->print(field_radio_Freq.getValue().f);
         UI.getDisplay()->setFont(u8g2_font_helvR14_tr);
-        UI.getDisplay()->print("Transmitter ID : ");
+        UI.getDisplay()->print(" Transmitter ID: ");
         UI.getDisplay()->setFont(u8g2_font_helvB14_tr);
         UI.getDisplay()->print(TRANSMITTER_ID);
         drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", EMPTY, "Activate");
@@ -1109,7 +1144,7 @@ void FlightScreen::run(TIME_INT_t time) {
                 UI.getDisplay()->drawBox(20, 50, 40, 40);
                 break;
             }
-            drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", EMPTY, EMPTY);
+            drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", EMPTY, EMPTY, false, false, false, false, true);
             UI.requestDraw();
             break;
         case FindReceiverAction::CONNECTED:
@@ -1120,6 +1155,7 @@ void FlightScreen::run(TIME_INT_t time) {
         break;
     }
     case CONNECTED:
+
         if (!sustainConnectionAction.isConnected()) {
             FDOS_LOG.println("Sustained connection dropped, freeing radio");
             toggleRadio();
@@ -1136,20 +1172,36 @@ void FlightScreen::run(TIME_INT_t time) {
 
         drawInputs();
         drawReceiverStats();
-        drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", CONTROLS.joy1V.getUnsignedValue() == 0 ? "Engage" : EMPTY, "Disconnect");
+        drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", CONTROLS.joy1V.getUnsignedValue() == 0 ? "Engage" : EMPTY, "Disconnect", false, false, false, false, true);
         CONTROLS.button2.setLEDValue(CONTROLS.joy1V.getUnsignedValue() == 0 ? 255 : 0);
         CONTROLS.button1.setLEDValue(255);
         UI.requestDraw();
         break;
     case ENGAGED:
+        if (!sustainConnectionAction.isConnected()) {
+            FDOS_LOG.println("Sustained connection dropped, freeing radio");
+            toggleRadio();
+            return;
+        }
+
         UI.getDisplay()->setDrawColor(1);
         UI.getDisplay()->drawBox(0, 25, 400, 215);
         UI.getDisplay()->setDrawColor(0);
         drawInputs();
         drawReceiverStats();
-        drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", "Disengage", "Disconnect");
-        CONTROLS.button2.setLEDValue(abs((microsSinceEpoch() / 5000) % 255 - 128) * 2);
+
+        drawNavMenu("Dir Yaw", "Dir Roll", "Dir Pch", "Exit", "Disengage", "Disconnect", sustainConnectionAction.getDirectYaw(),
+                    sustainConnectionAction.getDirectRoll(), sustainConnectionAction.getDirectPitch(), true, true);
+
+        uint8_t pmwPhase = abs((microsSinceEpoch() / 10000) % 255 - 128) * 2;
+
+        CONTROLS.button3.setLEDValue(sustainConnectionAction.getDirectPitch() ? 255 - pmwPhase : 0);
+        CONTROLS.button4.setLEDValue(sustainConnectionAction.getDirectRoll() ? pmwPhase : 0);
+        CONTROLS.button5.setLEDValue(sustainConnectionAction.getDirectYaw() ? 255 - pmwPhase : 0);
+
+        CONTROLS.button2.setLEDValue(pmwPhase);
         CONTROLS.button1.setLEDValue(255);
+
         UI.requestDraw();
     }
 }
@@ -1162,11 +1214,15 @@ void FlightScreen::drawInputs() {
 
 void FlightScreen::drawReceiverStats() {
     UI.getDisplay()->setDrawColor(0);
-    UI.getDisplay()->setCursor(200, 28);
+    UI.getDisplay()->setCursor(150, 28);
     receiver_heartbeat_t hb;
     sustainConnectionAction.getLastReceivedHB(hb);
     UI.getDisplay()->setFont(u8g2_font_10x20_tr);
-    UI.getDisplay()->printf("rx:%i%% tx:%i%% bat:%i", hb.snr, (int16_t)RADIO.getSNR() * 10, hb.batV);
+    UI.getDisplay()->printf(" Rx:%3i%%   Tx:%3i%%", hb.snr, (int16_t)RADIO.getSNR() * 10);
+    UI.getDisplay()->setCursor(150, 42);
+    UI.getDisplay()->printf("Vlt:%2.2f Cur:%2.2f", hb.getBatteryVolts(), hb.getCurrentAmps()); 
+    UI.getDisplay()->setCursor(150, 66);
+    UI.getDisplay()->printf("Vlt:%i Cur:%i", hb.batV, hb.cur); 
 }
 
 void FlightScreen::toggleRadio() {
