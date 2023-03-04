@@ -61,7 +61,7 @@ void Power::onShutdownUnsubscribe(FunctionPointer listener) {
 float Power::getBatteryVoltage() {
     digitalWrite(enBatSensePin, HIGH);
     uint16_t raw = analogRead(batSensePin);
-    return raw / 1;
+    return raw / 771.1;
 }
 
 uint8_t Power::getBatteryPercent() {

@@ -108,6 +108,44 @@ void drawVInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uin
     }
 }
 
+void drawMotorSpeeds(uint16_t topX, uint16_t topY, uint8_t speeds[4]) {
+    UI.getDisplay()->setDrawColor(0);
+    UI.getDisplay()->drawRFrame(topX, topY, 83, 36, 5);
+    UI.getDisplay()->drawBox(topX - 9, topY, 13, 36);
+    UI.getDisplay()->setFont(u8g2_font_t0_14_te);
+    UI.getDisplay()->setDrawColor(1);
+    UI.getDisplay()->setFontDirection(1);
+    UI.getDisplay()->setCursor(topX + 2, topY + 8);
+    UI.getDisplay()->print("ESC");
+    UI.getDisplay()->setFontDirection(0);
+    UI.getDisplay()->setDrawColor(0);
+    UI.getDisplay()->setFont(u8g2_font_t0_16b_te);
+    UI.getDisplay()->setCursor(topX + 8, topY + 5);
+    UI.getDisplay()->printf("%3i  %3i", speeds[0], speeds[1]);
+    UI.getDisplay()->setCursor(topX + 8, topY + 19);
+    UI.getDisplay()->printf("%3i  %3i", speeds[2], speeds[3]);
+}
+
+void drawOrientations(uint16_t topX, uint16_t topY, uint16_t current[3], uint16_t target[3]) {
+    UI.getDisplay()->setDrawColor(0);
+    UI.getDisplay()->drawRFrame(topX, topY, 115, 50, 5);
+    UI.getDisplay()->drawBox(topX - 9, topY, 13, 50);
+    UI.getDisplay()->setFont(u8g2_font_t0_14_te);
+    UI.getDisplay()->setDrawColor(1);
+    UI.getDisplay()->setFontDirection(1);
+    UI.getDisplay()->setCursor(topX + 2, topY + 8);
+    UI.getDisplay()->print("Y|P|R");
+    UI.getDisplay()->setFontDirection(0);
+    UI.getDisplay()->setDrawColor(0);
+    UI.getDisplay()->setFont(u8g2_font_t0_16b_te);
+    UI.getDisplay()->setCursor(topX + 8, topY + 5);
+    UI.getDisplay()->printf("%5.1f->%5.1f", convertHeading(current[0]), convertHeading(target[0]));
+    UI.getDisplay()->setCursor(topX + 8, topY + 19);
+    UI.getDisplay()->printf("%5.1f->%5.1f", convertHeading(current[1]), convertHeading(target[1]));
+    UI.getDisplay()->setCursor(topX + 8, topY + 33);
+    UI.getDisplay()->printf("%5.1f->%5.1f", convertHeading(current[2]), convertHeading(target[2]));
+}
+
 void arrowListener() {
     if (CONTROLS.arrows.getState() == CONTROLS.RIGHT)
         STATUS_SCREEN.pageRight();
@@ -1055,15 +1093,9 @@ void FlightScreen::toggleEngage() {
     if (state == ENGAGED) {
         state = CONNECTED;
         sustainConnectionAction.setEngineEngaged(false);
-        CONTROLS.button3.unsubscribe(toggleDirPitch);
-        CONTROLS.button4.unsubscribe(toggleDirRoll);
-        CONTROLS.button5.unsubscribe(toggleDirYaw);
     } else if (state == CONNECTED && CONTROLS.joy1V.getUnsignedValue() == 0) {
         state = ENGAGED;
         sustainConnectionAction.setEngineEngaged(true);
-        CONTROLS.button3.subscribe(toggleDirPitch);
-        CONTROLS.button4.subscribe(toggleDirRoll);
-        CONTROLS.button5.subscribe(toggleDirYaw);
     }
 }
 
@@ -1074,6 +1106,11 @@ void FlightScreen::start() {
     CONTROLS.button1.subscribe(radioActivateListener);
     CONTROLS.button2.subscribe(motorEngageListener);
     CONTROLS.wheelBtn.subscribe(navEnableButtonListener);
+
+    CONTROLS.button3.subscribe(toggleDirPitch);
+    CONTROLS.button4.subscribe(toggleDirRoll);
+    CONTROLS.button5.subscribe(toggleDirYaw);
+
     CONTROLS.joy1H.setHalfRange(127);
     CONTROLS.joy1V.setHalfRange(127);
     CONTROLS.joy2H.setHalfRange(127);
@@ -1090,6 +1127,9 @@ void FlightScreen::stop() {
     CONTROLS.wheelBtn.unsubscribe(navEnableButtonListener);
     CONTROLS.button1.unsubscribe(radioActivateListener);
     CONTROLS.button2.unsubscribe(motorEngageListener);
+    CONTROLS.button3.unsubscribe(toggleDirPitch);
+    CONTROLS.button4.unsubscribe(toggleDirRoll);
+    CONTROLS.button5.unsubscribe(toggleDirYaw);
     link->cancel();
 }
 
@@ -1172,9 +1212,14 @@ void FlightScreen::run(TIME_INT_t time) {
 
         drawInputs();
         drawReceiverStats();
-        drawNavMenu(EMPTY, EMPTY, EMPTY, "Exit", CONTROLS.joy1V.getUnsignedValue() == 0 ? "Engage" : EMPTY, "Disconnect", false, false, false, false, true);
+
+        drawNavMenu("Dir Yaw", "Dir Roll", "Dir Pch", "Exit", "Engage", "Disconnect", sustainConnectionAction.getDirectYaw(),
+                    sustainConnectionAction.getDirectRoll(), sustainConnectionAction.getDirectPitch(), false, true);
         CONTROLS.button2.setLEDValue(CONTROLS.joy1V.getUnsignedValue() == 0 ? 255 : 0);
-        CONTROLS.button1.setLEDValue(255);
+        CONTROLS.button1.setLEDValue(200);
+        CONTROLS.button3.setLEDValue(sustainConnectionAction.getDirectPitch() * 200);
+        CONTROLS.button4.setLEDValue(sustainConnectionAction.getDirectRoll() * 200);
+        CONTROLS.button5.setLEDValue(sustainConnectionAction.getDirectYaw() * 200);
         UI.requestDraw();
         break;
     case ENGAGED:
@@ -1214,15 +1259,20 @@ void FlightScreen::drawInputs() {
 
 void FlightScreen::drawReceiverStats() {
     UI.getDisplay()->setDrawColor(0);
-    UI.getDisplay()->setCursor(150, 28);
+    UI.getDisplay()->setCursor(140, 28);
     receiver_heartbeat_t hb;
     sustainConnectionAction.getLastReceivedHB(hb);
     UI.getDisplay()->setFont(u8g2_font_10x20_tr);
-    UI.getDisplay()->printf(" Rx:%3i%%   Tx:%3i%%", hb.snr, (int16_t)RADIO.getSNR() * 10);
-    UI.getDisplay()->setCursor(150, 42);
-    UI.getDisplay()->printf("Vlt:%2.2f Cur:%2.2f", hb.getBatteryVolts(), hb.getCurrentAmps()); 
-    UI.getDisplay()->setCursor(150, 66);
-    UI.getDisplay()->printf("Vlt:%i Cur:%i", hb.batV, hb.cur); 
+    UI.getDisplay()->printf("Rx :%3i%%   Tx:%3i%%", hb.snr, (int16_t)RADIO.getSNR() * 10);
+    UI.getDisplay()->setCursor(140, 43);
+    UI.getDisplay()->printf("Vlt:%2.2f Cur:%2.2f(%i)", hb.getBatteryVolts(), hb.getCurrentAmps(), hb.cur);
+
+    drawMotorSpeeds(145, 64, hb.speeds);
+    UI.getDisplay()->setFont(u8g2_font_t0_16b_te);
+    UI.getDisplay()->setCursor(142, 101);
+    UI.getDisplay()->printf("P.MB:%5.1f", convertPressure(hb.pressure));
+
+    drawOrientations(242, 64, hb.headings, hb.targetHeadings);
 }
 
 void FlightScreen::toggleRadio() {
