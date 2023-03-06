@@ -1,7 +1,6 @@
 
-#include <SettingsStore.h>
 #include <FDOS_LOG.h>
-
+#include <SettingsStore.h>
 
 EEPROMField field_AutoOff_Min(1, 0ul, 240ul, 10ul);
 EEPROMField field_AutoOff_V(3.0, 3.6, 3.2);
@@ -22,17 +21,42 @@ EEPROMField field_joy1V_Mid1(2, 1000ul, 3000ul, 2010ul);
 EEPROMField field_joy1V_Mid2(2, 1000ul, 3000ul, 2080ul);
 EEPROMField field_joy1V_Max(2, 2000ul, 3000ul, 2500ul);
 
-EEPROMField field_radio_Freq(900.0,931.0,915.0);
-EEPROMField field_radio_Linkbw(1,0ul,2ul,2ul);
-EEPROMField field_radio_SpreadingFactor(1,6ul,12ul,7ul);
-EEPROMField field_radio_CodingRate(1,5ul,8ul,5ul);
-EEPROMField field_radio_Power(1,2ul,20ul,10);
+EEPROMField field_radio_Freq(900.0, 931.0, 915.0);
+EEPROMField field_radio_Linkbw(1, 0ul, 2ul, 2ul);
+EEPROMField field_radio_SpreadingFactor(1, 6ul, 12ul, 7ul);
+EEPROMField field_radio_CodingRate(1, 5ul, 8ul, 5ul);
+EEPROMField field_radio_Power(1, 2ul, 20ul, 10);
 
-const uint8_t EEFIELD_COUNT = 23;
-EEPROMField *EEPROM_FIELDS[EEFIELD_COUNT] = {&field_AutoOff_Min, &field_AutoOff_V,  &field_joy2H_Min,  &field_joy2H_Mid1, &field_joy2H_Mid2, &field_joy2H_Max,
-                                             &field_joy2V_Min,   &field_joy2V_Mid1, &field_joy2V_Mid2, &field_joy2V_Max,  &field_joy1H_Min,  &field_joy1H_Mid1,
-                                             &field_joy1H_Mid2,  &field_joy1H_Max,  &field_joy1V_Min,  &field_joy1V_Mid1, &field_joy1V_Mid2, &field_joy1V_Max,
-                                             &field_radio_Freq,&field_radio_Linkbw,&field_radio_SpreadingFactor,&field_radio_CodingRate,&field_radio_Power};
+EEPROMField field_PID_yaw_kp(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_yaw_ki(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_yaw_kd(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_yaw_max_i(2, 0ul, 2000ul, 100ul);
+
+EEPROMField field_PID_roll_kp(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_roll_ki(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_roll_kd(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_roll_max_i(2, 0ul, 2000ul, 100ul);
+
+EEPROMField field_PID_pitch_kp(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_pitch_ki(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_pitch_kd(0.0f, 2.0, .1, 3);
+EEPROMField field_PID_pitch_max_i(2, 0ul, 2000ul, 100ul);
+
+const uint8_t EEFIELD_COUNT = 35;
+EEPROMField *EEPROM_FIELDS[EEFIELD_COUNT] = {
+    &field_AutoOff_Min,      &field_AutoOff_V,       &field_joy2H_Min,
+    &field_joy2H_Mid1,       &field_joy2H_Mid2,      &field_joy2H_Max,
+    &field_joy2V_Min,        &field_joy2V_Mid1,      &field_joy2V_Mid2,
+    &field_joy2V_Max,        &field_joy1H_Min,       &field_joy1H_Mid1,
+    &field_joy1H_Mid2,       &field_joy1H_Max,       &field_joy1V_Min,
+    &field_joy1V_Mid1,       &field_joy1V_Mid2,      &field_joy1V_Max,
+    &field_radio_Freq,       &field_radio_Linkbw,    &field_radio_SpreadingFactor,
+    &field_radio_CodingRate, &field_radio_Power,     &field_PID_yaw_kp,
+    &field_PID_yaw_ki,       &field_PID_yaw_kd,      &field_PID_yaw_max_i,
+    &field_PID_roll_kp,      &field_PID_roll_ki,     &field_PID_roll_kd,
+    &field_PID_roll_max_i,   &field_PID_pitch_kp,    &field_PID_pitch_ki,
+    &field_PID_pitch_kd,     &field_PID_pitch_max_i,
+};
 
 Settings::Settings() {
     uint16_t addr = FIRST_SETTING_ADDR;
@@ -117,7 +141,7 @@ void EEPROMField::modify(int delta) {
     case U8:
     case U16:
     case U32:
-        rawVal.u32 += delta;
+        rawVal.u32 += delta * decScale;
         if (rawVal.u32 > rawMaxInc.u32) {
             rawVal.u32 = rawMinInc.u32;
         } else if (rawVal.u32 < rawMinInc.u32) {
@@ -128,7 +152,7 @@ void EEPROMField::modify(int delta) {
     case I16:
     case I32:
     case I64:
-        rawVal.i64 += delta;
+        rawVal.i64 += delta * decScale;
         if (rawVal.i64 > rawMaxInc.i64) {
             rawVal.i64 = rawMinInc.i64;
         } else if (rawVal.i64 < rawMinInc.i64) {
@@ -136,7 +160,7 @@ void EEPROMField::modify(int delta) {
         }
         break;
     case F:
-        rawVal.f += delta / 100.0;
+        rawVal.f += delta * decScale;
         if (rawVal.f > rawMaxInc.f) {
             rawVal.f = rawMinInc.f;
         } else if (rawVal.f < rawMinInc.f) {
@@ -146,18 +170,21 @@ void EEPROMField::modify(int delta) {
     }
 }
 
-EEPROMField::EEPROMField(uint8_t byteSize, int64_t min, int64_t max, int64_t def)
+EEPROMField::EEPROMField(uint8_t byteSize, int64_t min, int64_t max, int64_t def, uint8_t decimalScale)
     : rawVal(def), rawMinInc(min), rawMaxInc(max), defVal(def), type(byteSize == 1   ? I8
                                                                      : byteSize == 2 ? I16
                                                                      : byteSize == 4 ? I32
-                                                                                     : I64) {}
+                                                                                     : I64),
+      decScale(pow10(decimalScale)) {}
 
-EEPROMField::EEPROMField(uint8_t byteSize, uint32_t min, uint32_t max, uint32_t def)
+EEPROMField::EEPROMField(uint8_t byteSize, uint32_t min, uint32_t max, uint32_t def, uint8_t decimalScale)
     : rawVal(def), rawMinInc(min), rawMaxInc(max), defVal(def), type(byteSize == 1   ? U8
                                                                      : byteSize == 2 ? U16
-                                                                                     : I32) {}
+                                                                                     : I32),
+      decScale(pow10(decimalScale)) {}
 
-EEPROMField::EEPROMField(float min, float max, float def) : rawVal(def), rawMinInc(min), rawMaxInc(max), defVal(def), type(F) {}
+EEPROMField::EEPROMField(float min, float max, float def, uint8_t decimalScale)
+    : rawVal(def), rawMinInc(min), rawMaxInc(max), defVal(def), type(F), decScale(pow10(-decimalScale)) {}
 
 void EEPROMField::save() {
     if (!modified)
@@ -192,7 +219,12 @@ const char *EEPROMField::getText() {
         sprintf(EEPROMField::buffer, "%" PRId64 "", rawVal.i64);
         break;
     case F:
-        sprintf(EEPROMField::buffer, "%0.2f", rawVal.f);
+        if (decScale == .1)
+            sprintf(EEPROMField::buffer, "%.1f", rawVal.f);
+        else if (decScale == .01)
+            sprintf(EEPROMField::buffer, "%.2f", rawVal.f);
+        else if (decScale == .001)
+            sprintf(EEPROMField::buffer, "%.3f", rawVal.f);
 
         break;
     }

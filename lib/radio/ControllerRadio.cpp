@@ -96,12 +96,15 @@ uint8_t FindReceiverAction::onSendReady(uint8_t *data, bool &responseExpected) {
 void SustainConnectionAction::onStart() {
     if (cancel != NULL)
         cancel->cancel();
-    cancel = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(TRANSMITTER_HB_MAX_MICROS, FrequencyUnitEnum::micro));
+    cancel = EXECUTOR.schedule((RunnableTask *)this, 10000, TRANSMITTER_HB_MAX_MICROS);
     lastContactReceivedTime = microsSinceEpoch();
 
     FDOS_LOG.println("Sustain connection starting...");
     connected = true;
     motorsEngaged = false;
+    sharedPIDConfig = false;
+
+    requestSend();
 }
 
 void SustainConnectionAction::onStop() {
@@ -144,9 +147,16 @@ void SustainConnectionAction::onReceive(uint8_t length, uint8_t *data, bool resp
         FDOS_LOG.println("HB response from receiver");
         tone(SND_OUTPUT_PIN, 2000, 50);
         lastContactReceivedTime = microsSinceEpoch();
-        msgFromBytes(&lastReceivedHB, data, receiver_heartbeat_t::size);
+        sharedPIDConfig = true;
+        msgFromBytes(&lastReceivedHB, data, sizeof(receiver_heartbeat_t));
         return;
     }
+}
+
+void SustainConnectionAction::onCriticalMessage(char *data) {
+    FDOS_LOG.print("Error received : ");
+    FDOS_LOG.println(data);
+    
 }
 
 bool SustainConnectionAction::shouldRequestResponse() {
@@ -161,15 +171,44 @@ bool SustainConnectionAction::shouldRequestResponse() {
 uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpected) {
     if (connected) {
         responseExpected = true;
-        transmitter_heartbeat_t hb(motorsEngaged, directPitch, directYaw, directRoll);
-        FDOS_LOG.printf("Direct S:%i P:%i Y:%i R:%i\n",hb.PIDMode,hb.isDirectPitch(),hb.isDirectRoll(), hb.isDirectYaw() );
-        FDOS_LOG.printf("Direct P:%i Y:%i R:%i\n",directPitch,directRoll, directYaw );
-        RADIOTASK.mute(TRANSMITTER_HB_ECHO_DELAY_MILLIS);
-        msgToBytes(&hb, data, transmitter_heartbeat_t::size);
-        analogWrite(LED_R_PIN, 2);
-        analogWrite(LED_B_PIN, 2);
-        analogWrite(LED_G_PIN, 5);
-        return transmitter_heartbeat_t::size;
+        if (sharedPIDConfig == false) {
+            flight_config_t config;
+            config.yaw_KP = field_PID_yaw_kp.getValue().f;
+            config.yaw_KI = field_PID_yaw_ki.getValue().f;
+            config.yaw_KD = field_PID_yaw_kd.getValue().f;
+            config.yaw_MAX_I = field_PID_yaw_max_i.getValue().i32;
+
+            config.roll_KP = field_PID_roll_kp.getValue().f;
+            config.roll_KI = field_PID_roll_ki.getValue().f;
+            config.roll_KD = field_PID_roll_kd.getValue().f;
+            config.roll_MAX_I = field_PID_roll_max_i.getValue().i32;
+
+            config.pitch_KP = field_PID_pitch_kp.getValue().f;
+            config.pitch_KI = field_PID_pitch_ki.getValue().f;
+            config.pitch_KD = field_PID_pitch_kd.getValue().f;
+            config.pitch_MAX_I = field_PID_pitch_max_i.getValue().i32;
+
+
+            RADIOTASK.mute(TRANSMITTER_HB_ECHO_DELAY_MILLIS);
+            msgToBytes(&config, data, sizeof(config));
+
+
+            analogWrite(LED_R_PIN, 1);
+            analogWrite(LED_B_PIN, 10);
+            analogWrite(LED_G_PIN, 2);
+
+            return sizeof(config);
+        } else {
+            transmitter_heartbeat_t hb(motorsEngaged, directPitch, directYaw, directRoll);
+            FDOS_LOG.printf("Direct S:%i P:%i Y:%i R:%i\n", hb.PIDMode, hb.isDirectPitch(), hb.isDirectRoll(), hb.isDirectYaw());
+            FDOS_LOG.printf("Direct P:%i Y:%i R:%i\n", directPitch, directRoll, directYaw);
+            RADIOTASK.mute(TRANSMITTER_HB_ECHO_DELAY_MILLIS);
+            msgToBytes(&hb, data, sizeof(transmitter_heartbeat_t));
+            analogWrite(LED_R_PIN, 2);
+            analogWrite(LED_B_PIN, 2);
+            analogWrite(LED_G_PIN, 5);
+            return sizeof(transmitter_heartbeat_t);
+        }
     } else {
         FDOS_LOG.println("Sending disconnect message");
         data[0] = TRANSMITTER_DISCONNECT;
@@ -217,9 +256,7 @@ void SustainConnectionAction::setEngineEngaged(bool engaged) {
     }
 }
 
-void flightInputListener() {
-    transmitCommandAction.changed();
-}
+void flightInputListener() { transmitCommandAction.changed(); }
 
 void TransmitCommandAction::onStart() {
     if (cancel != NULL)
@@ -230,7 +267,6 @@ void TransmitCommandAction::onStart() {
     CONTROLS.joy1V.subscribe(flightInputListener);
     CONTROLS.joy2H.subscribe(flightInputListener);
     CONTROLS.joy2V.subscribe(flightInputListener);
-
 }
 
 void TransmitCommandAction::onStop() {
@@ -274,6 +310,6 @@ uint8_t TransmitCommandAction::onSendReady(uint8_t *data, bool &responseExpected
     flightInput.slideH = CONTROLS.joy1H.getSignedValue();
     flightInput.joyV = CONTROLS.joy2V.getSignedValue();
     flightInput.joyH = CONTROLS.joy2H.getSignedValue();
-    msgToBytes(&flightInput, data, flight_input_t::size);
-    return (flight_input_t::size);
+    msgToBytes(&flightInput, data, sizeof(flight_input_t));
+    return (sizeof(flight_input_t));
 }

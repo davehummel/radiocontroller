@@ -34,9 +34,13 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     bool connected = false;
 
+    bool sharedPIDConfig = false;
+
     bool motorsEngaged = false;
 
     bool directPitch = true, directYaw = true, directRoll = true;
+
+    char errorMessage[255] = "\0";
 
   public:
     bool shouldRequestResponse();
@@ -46,6 +50,8 @@ class SustainConnectionAction : RadioAction, RunnableTask {
     void onStop();
 
     void onReceive(uint8_t length, uint8_t *data, bool responseExpected);
+
+    void onCriticalMessage(char *data);
 
     uint8_t onSendReady(uint8_t *data, bool &responseExpected);
 

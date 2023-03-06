@@ -25,13 +25,10 @@ class NavScreen : Screen, RunnableTask {
 
 class SettingsScreen : Screen, RunnableTask {
   private:
-    static const uint16_t FIELD_COUNT = 71;
-    static const uint8_t LINE_COUNT = 19;
-    static const uint8_t TAB_COUNT = 2;
+    static const uint16_t FIELD_COUNT = 96;
+    static const uint8_t LINE_COUNT = 23;
 
     static const uint8_t LINES[LINE_COUNT];
-    static const uint8_t TABS[TAB_COUNT];
-    static const String TAB_NAMES[TAB_COUNT];
 
     SettingField *FIELDS[SettingsScreen::FIELD_COUNT];
 
@@ -88,7 +85,7 @@ class FlightScreen : Screen, RunnableTask {
   private:
     String title = "Flight Control";
 
-    enum FlightScreenState { OFF, SEARCHING, CONNECTED , ENGAGED,PAUSED } state = OFF;
+    enum FlightScreenState { OFF, SEARCHING, CONNECTED , ENGAGED, PAUSED } state = OFF;
 
     ScheduledLink *link = NULL;
 

@@ -747,6 +747,11 @@ LabelField radioBWLabel("Link BW (0->125,1->250,2->500khz) ");
 LabelField radioSpreadLabel("Spread Factor (6-12) ");
 LabelField radioCodingRateLabel("Coding Rate (5-8) ");
 LabelField radioPowerLabel("Tx Power (2-20 dBm) ");
+LabelField flightPIDLabel("#PID   KP   KD   KI    MAXI");
+LabelField flightYAWLabel("  YAW:  ");
+LabelField flightPIDSpace("   ");
+LabelField flightROLLLabel(" ROLL:  ");
+LabelField flightPITCHLabel("PITCH:  ");
 
 class JoyStatsField : public SettingField {
   private:
@@ -766,81 +771,107 @@ class JoyStatsField : public SettingField {
 JoyStatsField joy2StatsLabel(JOY2_H_PIN, JOY2_V_PIN);
 JoyStatsField joy1StatsLabel(JOY1_H_PIN, JOY1_V_PIN);
 
-const uint8_t SettingsScreen::LINES[LINE_COUNT] = {0, 1, 12, 13, 15, 17, 18, 19, 21, 30, 39, 41, 50, 59, 60, 63, 65, 67, 69};
+const uint8_t SettingsScreen::LINES[LINE_COUNT] = {0, 1, 12, 13, 15, 17, 18, 19, 21, 30, 39, 41, 50, 59, 60, 63, 65, 67, 69, 71, 72, 80, 88};
 
 SettingsScreen::SettingsScreen()
-    : FIELDS{&dateTimeLabel,
-             &monthField,
-             &slashLabel,
-             &dayField,
-             &slashLabel,
-             &yearField,
-             &spaceLabel,
-             &hourField,
-             &colonLabel, // 9
-             &minuteField,
-             &colonLabel,
-             &secondField,
-             &autoOffLabel,
-             &field_AutoOff_Min,
-             &offMinLabel,
-             &field_AutoOff_V,
-             &offBatteryLabel,
-             &spacerLabel, // 18
-             &inputSettingsLabel,
-             &leftLabel,
-             &joy2StatsLabel,
-             &leftBracketLabel,
-             &field_joy2H_Min,
-             &leftCarrotLabel,
-             &field_joy2H_Mid1,
-             &lineLabel,
-             &field_joy2H_Mid2, // 27
-             &rightCarrotLabel,
-             &field_joy2H_Max,
-             &rightBracketLabel,
-             &leftBracketLabel,
-             &field_joy2V_Min,
-             &leftCarrotLabel,
-             &field_joy2V_Mid1,
-             &lineLabel,
-             &field_joy2V_Mid2, // 36
-             &rightCarrotLabel,
-             &field_joy2V_Max,
-             &rightBracketLabel,
-             &joy1StatsLabel,
-             &rightLabel,
-             &leftBracketLabel,
-             &field_joy1H_Min,
-             &leftCarrotLabel,
-             &field_joy1H_Mid1,
-             &lineLabel, // 45
-             &field_joy1H_Mid2,
-             &rightCarrotLabel,
-             &field_joy1H_Max,
-             &rightBracketLabel,
-             &leftBracketLabel,
-             &field_joy1V_Min,
-             &leftCarrotLabel,
-             &field_joy1V_Mid1,
-             &lineLabel, // 54
-             &field_joy1V_Mid2,
-             &rightCarrotLabel,
-             &field_joy1V_Max,
-             &rightBracketLabel,
-             &radioLabel,
-             &radioFreqLabel // 60
-             ,
-             &field_radio_Freq,
-             &radioMHZLabel,
-             &radioBWLabel,
-             &field_radio_Linkbw,
-             &radioSpreadLabel,
-             &field_radio_SpreadingFactor, // 66
-             &radioCodingRateLabel,
-             &field_radio_CodingRate,
-             &radioPowerLabel,
-             &field_radio_Power} {}
+    : FIELDS{
+          &dateTimeLabel,
+          &monthField,
+          &slashLabel,
+          &dayField,
+          &slashLabel,
+          &yearField,
+          &spaceLabel,
+          &hourField,
+          &colonLabel, // 9
+          &minuteField,
+          &colonLabel,
+          &secondField,
+          &autoOffLabel,
+          &field_AutoOff_Min,
+          &offMinLabel,
+          &field_AutoOff_V,
+          &offBatteryLabel,
+          &spacerLabel, // 18
+          &inputSettingsLabel,
+          &leftLabel,
+          &joy2StatsLabel,
+          &leftBracketLabel,
+          &field_joy2H_Min,
+          &leftCarrotLabel,
+          &field_joy2H_Mid1,
+          &lineLabel,
+          &field_joy2H_Mid2, // 27
+          &rightCarrotLabel,
+          &field_joy2H_Max,
+          &rightBracketLabel,
+          &leftBracketLabel,
+          &field_joy2V_Min,
+          &leftCarrotLabel,
+          &field_joy2V_Mid1,
+          &lineLabel,
+          &field_joy2V_Mid2, // 36
+          &rightCarrotLabel,
+          &field_joy2V_Max,
+          &rightBracketLabel,
+          &joy1StatsLabel,
+          &rightLabel,
+          &leftBracketLabel,
+          &field_joy1H_Min,
+          &leftCarrotLabel,
+          &field_joy1H_Mid1,
+          &lineLabel, // 45
+          &field_joy1H_Mid2,
+          &rightCarrotLabel,
+          &field_joy1H_Max,
+          &rightBracketLabel,
+          &leftBracketLabel,
+          &field_joy1V_Min,
+          &leftCarrotLabel,
+          &field_joy1V_Mid1,
+          &lineLabel, // 54
+          &field_joy1V_Mid2,
+          &rightCarrotLabel,
+          &field_joy1V_Max,
+          &rightBracketLabel,
+          &radioLabel,
+          &radioFreqLabel, // 60
+          &field_radio_Freq,
+          &radioMHZLabel,
+          &radioBWLabel,
+          &field_radio_Linkbw,
+          &radioSpreadLabel,
+          &field_radio_SpreadingFactor, // 66
+          &radioCodingRateLabel,
+          &field_radio_CodingRate,
+          &radioPowerLabel,
+          &field_radio_Power, // 70
+          &flightPIDLabel,    // 71
+          &flightYAWLabel,
+          &field_PID_yaw_kp,
+          &flightPIDSpace,
+          &field_PID_yaw_ki,
+          &flightPIDSpace,
+          &field_PID_yaw_kd,
+          &flightPIDSpace,
+          &field_PID_yaw_max_i, // 79
+          &flightROLLLabel,
+          &field_PID_roll_kp,
+          &flightPIDSpace,
+          &field_PID_roll_ki,
+          &flightPIDSpace,
+          &field_PID_roll_kd,
+          &flightPIDSpace,
+          &field_PID_roll_max_i, // 87
+          &flightPITCHLabel,
+          &field_PID_pitch_kp,
+          &flightPIDSpace,
+          &field_PID_pitch_ki,
+          &flightPIDSpace,
+          &field_PID_pitch_kd,
+          &flightPIDSpace,
+          &field_PID_pitch_max_i,//95
+      } {}
 
 String SettingsScreen::getField(uint8_t index, bool &editable) {
     if (index >= FIELD_COUNT) {

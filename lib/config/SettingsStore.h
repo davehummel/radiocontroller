@@ -88,6 +88,8 @@ class EEPROMField : public SettingField {
     const generic_val_t rawMaxInc;
     const generic_val_t defVal;
 
+    const float decScale;
+
     static char buffer[32];
 
     bool modified = false;
@@ -106,9 +108,9 @@ class EEPROMField : public SettingField {
   public:
     const val_type_t type;
 
-    EEPROMField(uint8_t byteSize, int64_t min, int64_t max, int64_t def);
-    EEPROMField(uint8_t byteSize, uint32_t min, uint32_t max, uint32_t def);
-    EEPROMField(float min, float max, float def);
+    EEPROMField(uint8_t byteSize, int64_t min, int64_t max, int64_t def,uint8_t decimalScale = 1);
+    EEPROMField(uint8_t byteSize, uint32_t min, uint32_t max, uint32_t def,uint8_t decimalScale = 1);
+    EEPROMField(float min, float max, float def,uint8_t decimalScale = 2);
 
     bool readOnly() { return false; };
 
@@ -157,6 +159,10 @@ extern EEPROMField field_radio_Linkbw;
 extern EEPROMField field_radio_SpreadingFactor;
 extern EEPROMField field_radio_CodingRate;
 extern EEPROMField field_radio_Power;
+
+extern EEPROMField field_PID_yaw_kp,field_PID_yaw_ki,field_PID_yaw_kd,field_PID_yaw_max_i;
+extern EEPROMField field_PID_roll_kp,field_PID_roll_ki,field_PID_roll_kd,field_PID_roll_max_i;
+extern EEPROMField field_PID_pitch_kp,field_PID_pitch_ki,field_PID_pitch_kd,field_PID_pitch_max_i;
 
 
 extern Settings SETTINGS;
