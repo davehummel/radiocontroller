@@ -2,45 +2,45 @@
 #include <FDOS_LOG.h>
 #include <SettingsStore.h>
 
-EEPROMField field_AutoOff_Min(1, 0ul, 240ul, 10ul);
-EEPROMField field_AutoOff_V(3.0, 3.6, 3.2);
-EEPROMField field_joy2H_Min(2, 1000ul, 2000ul, 1550ul);
-EEPROMField field_joy2H_Mid1(2, 1000ul, 3000, 2010ul);
-EEPROMField field_joy2H_Mid2(2, 1000ul, 3000, 2080ul);
-EEPROMField field_joy2H_Max(2, 2000ul, 3000ul, 2500ul);
-EEPROMField field_joy2V_Min(2, 1000ul, 2000ul, 1550ul);
-EEPROMField field_joy2V_Mid1(2, 1000ul, 3000ul, 2010ul);
-EEPROMField field_joy2V_Mid2(2, 1000ul, 3000ul, 2080ul);
-EEPROMField field_joy2V_Max(2, 2000ul, 3000ul, 2500ul);
-EEPROMField field_joy1H_Min(2, 1000ul, 2000ul, 1550ul);
-EEPROMField field_joy1H_Mid1(2, 1000ul, 3000ul, 2010ul);
-EEPROMField field_joy1H_Mid2(2, 1000ul, 3000ul, 2080ul);
-EEPROMField field_joy1H_Max(2, 2000ul, 3000ul, 2500ul);
-EEPROMField field_joy1V_Min(2, 1000ul, 2000ul, 1550ul);
-EEPROMField field_joy1V_Mid1(2, 1000ul, 3000ul, 2010ul);
-EEPROMField field_joy1V_Mid2(2, 1000ul, 3000ul, 2080ul);
-EEPROMField field_joy1V_Max(2, 2000ul, 3000ul, 2500ul);
+EEPROMField field_AutoOff_Min(1, 1ul, 240ul,10ul,1);
+EEPROMField field_AutoOff_V(3.0, 3.6, 3.2,2);
+EEPROMField field_joy2H_Min(2, 1000ul, 2000ul, 1550ul,1);
+EEPROMField field_joy2H_Mid1(2, 1000ul, 3000, 2010ul,1);
+EEPROMField field_joy2H_Mid2(2, 1000ul, 3000, 2080ul,1);
+EEPROMField field_joy2H_Max(2, 2000ul, 3000ul, 2500ul,1);
+EEPROMField field_joy2V_Min(2, 1000ul, 2000ul, 1550ul,1);
+EEPROMField field_joy2V_Mid1(2, 1000ul, 3000ul, 2010ul,1);
+EEPROMField field_joy2V_Mid2(2, 1000ul, 3000ul, 2080ul,1);
+EEPROMField field_joy2V_Max(2, 2000ul, 3000ul, 2500ul,1);
+EEPROMField field_joy1H_Min(2, 1000ul, 2000ul, 1550ul,1);
+EEPROMField field_joy1H_Mid1(2, 1000ul, 3000ul, 2010ul,1);
+EEPROMField field_joy1H_Mid2(2, 1000ul, 3000ul, 2080ul,1);
+EEPROMField field_joy1H_Max(2, 2000ul, 3000ul, 2500ul,1);
+EEPROMField field_joy1V_Min(2, 1000ul, 2000ul, 1550ul,1);
+EEPROMField field_joy1V_Mid1(2, 1000ul, 3000ul, 2010ul,1);
+EEPROMField field_joy1V_Mid2(2, 1000ul, 3000ul, 2080ul,1);
+EEPROMField field_joy1V_Max(2, 2000ul, 3000ul, 2500ul,1);
 
-EEPROMField field_radio_Freq(900.0, 931.0, 915.0);
-EEPROMField field_radio_Linkbw(1, 0ul, 2ul, 2ul);
-EEPROMField field_radio_SpreadingFactor(1, 6ul, 12ul, 7ul);
-EEPROMField field_radio_CodingRate(1, 5ul, 8ul, 5ul);
-EEPROMField field_radio_Power(1, 2ul, 20ul, 10);
+EEPROMField field_radio_Freq(900.0, 931.0, 915.0,1);
+EEPROMField field_radio_Linkbw(1, 0ul, 2ul, 2ul,1);
+EEPROMField field_radio_SpreadingFactor(1, 6ul, 12ul, 7ul,1);
+EEPROMField field_radio_CodingRate(1, 5ul, 8ul, 5ul,1);
+EEPROMField field_radio_Power(1, 2ul, 20ul, 10,1);
 
 EEPROMField field_PID_yaw_kp(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_yaw_ki(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_yaw_kd(0.0f, 2.0, .1, 3);
-EEPROMField field_PID_yaw_max_i(2, 0ul, 2000ul, 100ul);
+EEPROMField field_PID_yaw_max_i(2, 0ul, 2000ul, 100ul,1);
 
 EEPROMField field_PID_roll_kp(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_roll_ki(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_roll_kd(0.0f, 2.0, .1, 3);
-EEPROMField field_PID_roll_max_i(2, 0ul, 2000ul, 100ul);
+EEPROMField field_PID_roll_max_i(2, 0ul, 2000ul, 100ul,1);
 
 EEPROMField field_PID_pitch_kp(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_pitch_ki(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_pitch_kd(0.0f, 2.0, .1, 3);
-EEPROMField field_PID_pitch_max_i(2, 0ul, 2000ul, 100ul);
+EEPROMField field_PID_pitch_max_i(2, 0ul, 2000ul, 100ul,1);
 
 const uint8_t EEFIELD_COUNT = 35;
 EEPROMField *EEPROM_FIELDS[EEFIELD_COUNT] = {
@@ -175,13 +175,13 @@ EEPROMField::EEPROMField(uint8_t byteSize, int64_t min, int64_t max, int64_t def
                                                                      : byteSize == 2 ? I16
                                                                      : byteSize == 4 ? I32
                                                                                      : I64),
-      decScale(pow10(decimalScale)) {}
+      decScale(pow10(decimalScale-1)) {}
 
 EEPROMField::EEPROMField(uint8_t byteSize, uint32_t min, uint32_t max, uint32_t def, uint8_t decimalScale)
     : rawVal(def), rawMinInc(min), rawMaxInc(max), defVal(def), type(byteSize == 1   ? U8
                                                                      : byteSize == 2 ? U16
                                                                                      : I32),
-      decScale(pow10(decimalScale)) {}
+      decScale(pow10(decimalScale-1)) {}
 
 EEPROMField::EEPROMField(float min, float max, float def, uint8_t decimalScale)
     : rawVal(def), rawMinInc(min), rawMaxInc(max), defVal(def), type(F), decScale(pow10(-decimalScale)) {}

@@ -3,167 +3,21 @@
 #include "RemoteControlInputs.h"
 #include "RemoteDisplay.h"
 #include "RootUI.h"
-#include "SettingsStore.h"
-#include "VMExecutor.h"
-#include "VMTime.h"
 
-class NavScreen : Screen, RunnableTask {
-  private:
-    String title = "Navigation";
-    ScheduledLink *link = NULL;
 
-    void drawGuide();
 
-  public:
-    void start();
-    void stop();
+extern String EMPTY_TITLE;
 
-    void run(TIME_INT_t time);
+void navEnableButtonListener();
+void navActionButtonListener();
 
-    String &getTitle() { return title; }
-};
+void drawNavMenu(String b5 = EMPTY_TITLE, String b4 = EMPTY_TITLE, String b3 = EMPTY_TITLE, String bCirc = EMPTY_TITLE, String b2 = EMPTY_TITLE, String b1 = EMPTY_TITLE, bool b5Toggle = false,
+                 bool b4Toggle = false, bool b3Toggle = false, bool b2Toggle = false, bool b1Toggle = false) ;
+void drawXYInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t xVal, uint16_t yVal, uint16_t valMax, bool printVals);
+void drawHInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uint16_t val, uint16_t valMax, bool printVals);
+void drawVInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uint16_t val, uint16_t valMax, bool printVals, bool printLeftSide = true);
 
-class SettingsScreen : Screen, RunnableTask {
-  private:
-    static const uint16_t FIELD_COUNT = 96;
-    static const uint8_t LINE_COUNT = 23;
 
-    static const uint8_t LINES[LINE_COUNT];
 
-    SettingField *FIELDS[SettingsScreen::FIELD_COUNT];
-
-    uint8_t index = 0;
-
-    bool editing = false;
-
-    int8_t partialValueChange = 0;
-
-    String title = "Settings";
-
-    ScheduledLink *link = NULL;
-
-    uint8_t getLine(uint8_t index);
-    uint8_t getIndexAtLine(uint8_t index);
-
-    String getField(uint8_t index, bool &editable);
-
-    void exitEditMode();
-
-    void drawField(String &text, bool editable, bool selected);
-
-    void render(bool isEditable, bool isSelected, String text);
-
-  public:
-    SettingsScreen();
-    void start();
-    void stop();
-
-    void run(TIME_INT_t time);
-
-    String &getTitle() { return title; }
-
-    void incrementIndex();
-    void decrementIndex();
-
-    void incrementTab();
-    void decrementTab();
-
-    void startChange();
-
-    void changeValue(int val);
-
-    void cancelChange();
-
-    void saveChange();
-
-    void overwriteWithDefault();
-
-    void updateButtonLights();
-};
-
-class FlightScreen : Screen, RunnableTask {
-  private:
-    String title = "Flight Control";
-
-    enum FlightScreenState { OFF, SEARCHING, CONNECTED , ENGAGED, PAUSED } state = OFF;
-
-    ScheduledLink *link = NULL;
-
-    void drawInputs();
-    void drawReceiverStats();
-
-  public:
-    void start();
-    void stop();
-
-    void run(TIME_INT_t time);
-
-    String &getTitle() { return title; }
-
-    
-    void toggleRadio();
-    void toggleEngage();
-};
-
-class PCScreen : Screen, RunnableTask {
-  private:
-    String title = "PC Control";
-
-    int wheelLoc = 512;
-    uint8_t runCount = 0;
-
-    ScheduledLink *link = NULL;
-
-    void updateJoystick();
-    void updateScreen();
-
-  public:
-    void start();
-    void stop();
-
-    void run(TIME_INT_t time);
-
-    String &getTitle() { return title; }
-};
-
-class StatusScreen : Screen, RunnableTask {
-  private:
-    String title = "Status";
-
-    ScheduledLink *link = NULL;
-
-    uint8_t page;
-
-    void updateRootUI();
-
-    void renderSummary();
-
-    void renderInput();
-
-    void renderConfig();
-
-    void renderPage();
-
-    void drawMenu(const char *text, bool isLeft);
-
-  public:
-    void start();
-
-    void stop();
-
-    void run(TIME_INT_t time);
-
-    void pageRight();
-
-    void pageLeft();
-
-    String &getTitle() { return title; }
-};
-
-extern StatusScreen STATUS_SCREEN;
-extern NavScreen NAV_SCREEN;
-extern SettingsScreen SETTINGS_SCREEN;
-extern FlightScreen FLIGHT_SCREEN;
-extern PCScreen PC_SCREEN;
 
 #endif

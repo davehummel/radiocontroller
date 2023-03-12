@@ -156,7 +156,6 @@ void SustainConnectionAction::onReceive(uint8_t length, uint8_t *data, bool resp
 void SustainConnectionAction::onCriticalMessage(char *data) {
     FDOS_LOG.print("Error received : ");
     FDOS_LOG.println(data);
-    
 }
 
 bool SustainConnectionAction::shouldRequestResponse() {
@@ -171,7 +170,14 @@ bool SustainConnectionAction::shouldRequestResponse() {
 uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpected) {
     if (connected) {
         responseExpected = true;
-        if (sharedPIDConfig == false) {
+        if (directESC.commandDurationSeconds > 0) {
+            msgToBytes(&directESC, data, sizeof(directESC));
+            analogWrite(LED_R_PIN, 10);
+            analogWrite(LED_B_PIN, 10);
+            analogWrite(LED_G_PIN, 0);
+            directESC.commandDurationSeconds = 0;
+            return sizeof(directESC);
+        } else if (sharedPIDConfig == false) {
             flight_config_t config;
             config.yaw_KP = field_PID_yaw_kp.getValue().f;
             config.yaw_KI = field_PID_yaw_ki.getValue().f;
@@ -188,10 +194,8 @@ uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpect
             config.pitch_KD = field_PID_pitch_kd.getValue().f;
             config.pitch_MAX_I = field_PID_pitch_max_i.getValue().i32;
 
-
             RADIOTASK.mute(TRANSMITTER_HB_ECHO_DELAY_MILLIS);
             msgToBytes(&config, data, sizeof(config));
-
 
             analogWrite(LED_R_PIN, 1);
             analogWrite(LED_B_PIN, 10);
@@ -254,6 +258,15 @@ void SustainConnectionAction::setEngineEngaged(bool engaged) {
     } else {
         RADIOTASK.removeAction((RadioAction *)&transmitCommandAction);
     }
+}
+
+void SustainConnectionAction::setESC(uint8_t runtimeSeconds, uint8_t *escVals) {
+    directESC.commandDurationSeconds = runtimeSeconds;
+    directESC.escVals[0] = escVals[0];
+    directESC.escVals[1] = escVals[1];
+    directESC.escVals[2] = escVals[2];
+    directESC.escVals[3] = escVals[3];
+    requestSend();
 }
 
 void flightInputListener() { transmitCommandAction.changed(); }

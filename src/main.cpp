@@ -18,6 +18,7 @@
 #include <RemoteDisplay.h>
 #include <RootUI.h>
 #include <Screens.h>
+#include <StatusScreen.h>
 
 #include <ControllerRadio.h>
 #include <RadioTask.h>

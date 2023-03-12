@@ -42,6 +42,8 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     char errorMessage[255] = "\0";
 
+    direct_esc_t directESC;
+
   public:
     bool shouldRequestResponse();
 
@@ -72,6 +74,8 @@ class SustainConnectionAction : RadioAction, RunnableTask {
     bool getDirectPitch() { return directPitch; }
     bool getDirectYaw() { return directYaw; }
     bool getDirectRoll() { return directRoll; }
+
+    void setESC(uint8_t runtimeSeconds,uint8_t* escVals);
 };
 
 class TransmitCommandAction : RadioAction, RunnableTask {

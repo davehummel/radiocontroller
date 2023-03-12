@@ -88,8 +88,6 @@ class EEPROMField : public SettingField {
     const generic_val_t rawMaxInc;
     const generic_val_t defVal;
 
-    const float decScale;
-
     static char buffer[32];
 
     bool modified = false;
@@ -107,10 +105,11 @@ class EEPROMField : public SettingField {
 
   public:
     const val_type_t type;
+    const float decScale;
 
-    EEPROMField(uint8_t byteSize, int64_t min, int64_t max, int64_t def,uint8_t decimalScale = 1);
-    EEPROMField(uint8_t byteSize, uint32_t min, uint32_t max, uint32_t def,uint8_t decimalScale = 1);
-    EEPROMField(float min, float max, float def,uint8_t decimalScale = 2);
+    EEPROMField(uint8_t byteSize, int64_t min, int64_t max, int64_t def,uint8_t decimalScale );
+    EEPROMField(uint8_t byteSize, uint32_t min, uint32_t max, uint32_t def,uint8_t decimalScale );
+    EEPROMField(float min, float max, float def,uint8_t decimalScale );
 
     bool readOnly() { return false; };
 
