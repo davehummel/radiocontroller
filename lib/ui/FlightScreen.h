@@ -30,7 +30,11 @@ class FlightScreen : Screen, RunnableTask {
 
 class FlightConfigScreen : Screen, RunnableTask {
   private:
-    static const int8_t maxSelection = 4;
+    static const int8_t maxSelection = 16;
+
+    static const uint16_t PID_FIELD_COUNT = 12;
+
+    SettingField *PID_FIELDS[PID_FIELD_COUNT];
 
     String title = "Flight Config";
 
@@ -50,6 +54,7 @@ class FlightConfigScreen : Screen, RunnableTask {
     uint8_t escVals [4] = {0};
 
   public:
+    FlightConfigScreen();
     void start();
     void stop();
 
@@ -58,7 +63,6 @@ class FlightConfigScreen : Screen, RunnableTask {
     String &getTitle() { return title; }
 
     void toggleTelemetry();
-    void exitConfig();
     void moveSelection(int8_t move);
     void changeValue(int8_t value);
     void sendESC();

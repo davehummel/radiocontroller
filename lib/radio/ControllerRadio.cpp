@@ -169,8 +169,8 @@ bool SustainConnectionAction::shouldRequestResponse() {
 
 uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpected) {
     if (connected) {
-        responseExpected = true;
         if (directESC.commandDurationSeconds > 0) {
+            responseExpected = false;
             msgToBytes(&directESC, data, sizeof(directESC));
             analogWrite(LED_R_PIN, 10);
             analogWrite(LED_B_PIN, 10);
@@ -178,6 +178,7 @@ uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpect
             directESC.commandDurationSeconds = 0;
             return sizeof(directESC);
         } else if (sharedPIDConfig == false) {
+            responseExpected = true;
             flight_config_t config;
             config.yaw_KP = field_PID_yaw_kp.getValue().f;
             config.yaw_KI = field_PID_yaw_ki.getValue().f;
@@ -203,6 +204,7 @@ uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpect
 
             return sizeof(config);
         } else {
+            responseExpected = true;
             transmitter_heartbeat_t hb(motorsEngaged, directPitch, directYaw, directRoll);
             FDOS_LOG.printf("Direct S:%i P:%i Y:%i R:%i\n", hb.PIDMode, hb.isDirectPitch(), hb.isDirectRoll(), hb.isDirectYaw());
             FDOS_LOG.printf("Direct P:%i Y:%i R:%i\n", directPitch, directRoll, directYaw);

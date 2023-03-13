@@ -80,6 +80,12 @@ void configEnableButtonListener() {
     }
 }
 
+FlightConfigScreen::FlightConfigScreen()
+    : PID_FIELDS{
+          &field_PID_yaw_kp,  &field_PID_yaw_ki,     &field_PID_yaw_kd,   &field_PID_yaw_max_i, &field_PID_roll_kp,  &field_PID_roll_ki,
+          &field_PID_roll_kd, &field_PID_roll_max_i, &field_PID_pitch_kp, &field_PID_pitch_ki,  &field_PID_pitch_kd, &field_PID_pitch_max_i,
+      } {}
+
 void FlightScreen::startConfig() {
     switch (state) {
     case CONNECTED:
@@ -306,7 +312,7 @@ void FlightScreen::toggleRadio() {
     if (state == OFF) {
         UI.getDisplay()->setFont(u8g2_font_t0_14b_te);
         UI.getDisplay()->setCursor(20, 50);
-
+        UI.getDisplay()->setDrawColor(0);
         UI.getDisplay()->print("Starting Radio ");
         UI.requestDraw(true);
 
@@ -325,7 +331,7 @@ void FlightScreen::toggleRadio() {
             break;
         }
         int rstate = RADIO.begin(field_radio_Freq.getValue().f, linkBW, field_radio_SpreadingFactor.getValue().u8, field_radio_CodingRate.getValue().u8);
-
+        UI.getDisplay()->setDrawColor(0);
         if (rstate == RADIOLIB_ERR_NONE) {
             UI.getDisplay()->println("...");
             UI.requestDraw(true);
@@ -347,6 +353,7 @@ void FlightScreen::toggleRadio() {
 
             return;
         }
+        UI.getDisplay()->setDrawColor(0);
         UI.getDisplay()->println("Started!");
         UI.requestDraw(true);
         delay(500);
@@ -386,7 +393,7 @@ void configWheelListener() {
     }
 }
 
-void configESCButtonListener(){
+void configESCButtonListener() {
     if (CONTROLS.button5.isPressed()) {
         FLIGHT_CONFIG_SCREEN.sendESC();
     }
@@ -436,12 +443,11 @@ void FlightConfigScreen::changeValue(int8_t change) {
     }
 }
 
-void FlightConfigScreen::sendESC(){
-    sustainConnectionAction.setESC(runtime,escVals);
-}
+void FlightConfigScreen::sendESC() { sustainConnectionAction.setESC(runtime, escVals); }
 
 void FlightConfigScreen::start() {
     link = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(250, FrequencyUnitEnum::milli));
+    CONTROLS.button2.setLEDValue(0);
     CONTROLS.button1.setLEDValue(255);
     CONTROLS.button1.subscribe(configExitButtonListener);
     CONTROLS.button5.subscribe(configESCButtonListener);
@@ -459,31 +465,65 @@ void FlightConfigScreen::stop() {
 
 void FlightConfigScreen::drawESC() {
     UI.getDisplay()->setDrawColor(0);
-    UI.getDisplay()->setCursor(20, 45);
-    UI.getDisplay()->setFont(u8g2_font_10x20_tr);
-    UI.getDisplay()->printf("Motor for:%3i sec", runtime);
-    drawMotorSpeeds(45, 64, escVals);
+    UI.getDisplay()->setCursor(20, 50);
+    UI.getDisplay()->setFont(u8g2_font_t0_16_te);
+    UI.getDisplay()->printf("For: %3i sec", runtime);
+    drawMotorSpeeds(45, 69, escVals);
     UI.getDisplay()->setDrawColor(0);
     switch (selection) {
     case 0:
-        UI.getDisplay()->drawFrame(125, 43, 30, 20);
+        UI.getDisplay()->drawFrame(57, 48, 28, 17);
         break;
     case 1:
-        UI.getDisplay()->drawFrame(50, 66, 30, 17);
+        UI.getDisplay()->drawFrame(50, 71, 30, 17);
         break;
     case 2:
-        UI.getDisplay()->drawFrame(92, 66, 30, 17);
+        UI.getDisplay()->drawFrame(92, 71, 30, 17);
         break;
     case 3:
-        UI.getDisplay()->drawFrame(50, 81, 30, 17);
+        UI.getDisplay()->drawFrame(50, 86, 30, 17);
         break;
     case 4:
-        UI.getDisplay()->drawFrame(92, 81, 30, 17);
+        UI.getDisplay()->drawFrame(92, 86, 30, 17);
         break;
     }
 }
 
-void FlightConfigScreen::drawPID() {}
+void FlightConfigScreen::drawPID() {
+    UI.getDisplay()->setDrawColor(0);
+    UI.getDisplay()->setCursor(178, 53);
+    UI.getDisplay()->setFont(u8g2_font_t0_16b_te);
+    UI.getDisplay()->print("KP     KI    KD   MaxI");
+
+    UI.getDisplay()->drawRFrame(148, 69, 220, 53, 5);
+    UI.getDisplay()->drawBox(148, 69, 13, 53);
+    UI.getDisplay()->setFont(u8g2_font_t0_14_te);
+    UI.getDisplay()->setDrawColor(1);
+    UI.getDisplay()->setFontDirection(1);
+    UI.getDisplay()->setCursor(159, 78);
+    UI.getDisplay()->print("Y|P|R");
+    UI.getDisplay()->setFontDirection(0);
+    UI.getDisplay()->setFont(u8g2_font_t0_16b_te);
+    UI.getDisplay()->setDrawColor(0);
+
+    uint16_t x = 168, y = 71;
+
+    for (uint8_t i = 0; i < PID_FIELD_COUNT; i++) {
+
+        UI.getDisplay()->setDrawColor(0);
+        if (i == selection - 5)
+            UI.getDisplay()->drawFrame(x-5, y-1, 50, 15);
+        UI.getDisplay()->setCursor(x, y);
+
+        UI.getDisplay()->print(PID_FIELDS[i]->getText());
+        if (i % 4 == 3) {
+            y += 18;
+            x = 168;
+        } else {
+            x += 53;
+        }
+    }
+}
 
 void FlightConfigScreen::run(TIME_INT_t time) {
     if (!sustainConnectionAction.isConnected()) {

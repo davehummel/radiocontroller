@@ -60,7 +60,7 @@ void setup(void) {
     ROOT_UI.start();
 
     ROOT_UI.setScreen((Screen *)&STATUS_SCREEN);
-    CONTROLS.start(5000);
+    CONTROLS.start(10000);
 
     RADIO.setRfSwitchPins(RADIO_RX_EN_PIN, RADIO_TX_EN_PIN);
 

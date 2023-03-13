@@ -145,7 +145,7 @@ bool InputSet::update(TIME_INT_t time, bool mute) {
         }
     }
     if (activeInput || inputTimeMicros == 0) {
-        inputTimeMicros = micros64();
+        inputTimeMicros = micros64(); // this doesnt use system time so system time changes wont indicate long periods without input
     }
     return anyUpdates;
 }
