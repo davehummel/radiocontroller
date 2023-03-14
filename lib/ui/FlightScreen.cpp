@@ -387,15 +387,43 @@ void configLeftRightButtonListener() {
         FLIGHT_CONFIG_SCREEN.moveSelection(1);
 }
 
-void configWheelListener() {
+void configEditWheelListener() {
     if (CONTROLS.wheel.hasChanged()) {
         FLIGHT_CONFIG_SCREEN.changeValue(CONTROLS.wheel.getDelta());
     }
 }
 
+void configEditArrowListener() {
+    if (CONTROLS.arrows.getState() == CONTROLS.RIGHT) {
+        FLIGHT_CONFIG_SCREEN.changeValue(50);
+    } else if (CONTROLS.arrows.getState() == CONTROLS.LEFT) {
+        FLIGHT_CONFIG_SCREEN.changeValue(-50);
+    }
+    if (CONTROLS.arrows.getState() == CONTROLS.DOWN) {
+        FLIGHT_CONFIG_SCREEN.changeValue(500);
+    } else if (CONTROLS.arrows.getState() == CONTROLS.UP) {
+        FLIGHT_CONFIG_SCREEN.changeValue(-500);
+    }
+}
+
+void configEditButtonListener() {
+    if (CONTROLS.button2.isPressed()) {
+        FLIGHT_CONFIG_SCREEN.startChange();
+    }
+}
+
+void configSaveButtonListener() { FLIGHT_CONFIG_SCREEN.saveChange(); }
+void configCancelButtonListener() { FLIGHT_CONFIG_SCREEN.cancelChange(); }
+
 void configESCButtonListener() {
     if (CONTROLS.button5.isPressed()) {
         FLIGHT_CONFIG_SCREEN.sendESC();
+    }
+}
+
+void configPIDButtonListener() {
+    if (CONTROLS.button4.isPressed()) {
+        FLIGHT_CONFIG_SCREEN.sendPIDSettings();
     }
 }
 
@@ -439,28 +467,71 @@ void FlightConfigScreen::changeValue(int8_t change) {
         escVals[selection - 1] += change;
         break;
     default:
+        if (change != 0) {
+            PID_FIELDS[selection - 5]->modify(change);
+        }
         break;
     }
 }
 
+void FlightConfigScreen::startChange() {
+    if (editing == true)
+        return;
+    editing = true;
+    CONTROLS.button1.unsubscribe(configExitButtonListener);
+    CONTROLS.button2.unsubscribe(configEditButtonListener);
+    // CONTROLS.button3.unsubscribe(openTelemetryButtonListener);
+    CONTROLS.button4.unsubscribe(configPIDButtonListener);
+    CONTROLS.button5.unsubscribe(configESCButtonListener);
+
+    CONTROLS.wheel.subscribe(configEditWheelListener);
+    CONTROLS.button1.subscribe(configEditWheelListener);
+
+    CONTROLS.button1.setLEDValue(255);
+    CONTROLS.button2.setLEDValue(0);
+    CONTROLS.button3.setLEDValue(255);
+    CONTROLS.button4.setLEDValue(255);
+    CONTROLS.button5.setLEDValue(0);
+}
+
 void FlightConfigScreen::sendESC() { sustainConnectionAction.setESC(runtime, escVals); }
+
+void FlightConfigScreen::sendPIDSettings() { sustainConnectionAction.setPIDConfig(); }
 
 void FlightConfigScreen::start() {
     link = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(250, FrequencyUnitEnum::milli));
-    CONTROLS.button2.setLEDValue(0);
+
     CONTROLS.button1.setLEDValue(255);
+    CONTROLS.button2.setLEDValue(255);
     CONTROLS.button1.subscribe(configExitButtonListener);
+    CONTROLS.button2.subscribe(configEditButtonListener);
+    // CONTROLS.button3.subscribe(openTelemetryButtonListener);
+    // CONTROLS.button3.setLEDValue(255);
+    CONTROLS.button4.subscribe(configPIDButtonListener);
+    CONTROLS.button4.setLEDValue(255);
     CONTROLS.button5.subscribe(configESCButtonListener);
     CONTROLS.button5.setLEDValue(255);
     CONTROLS.arrows.subscribe(configLeftRightButtonListener);
-    CONTROLS.wheel.subscribe(configWheelListener);
+
+    editing = false;
 }
 
 void FlightConfigScreen::stop() {
     link->cancel();
-    CONTROLS.button1.unsubscribe(configExitButtonListener);
     CONTROLS.arrows.unsubscribe(configLeftRightButtonListener);
-    CONTROLS.wheel.unsubscribe(configWheelListener);
+    if (editing) {
+        CONTROLS.button1.unsubscribe(configExitButtonListener);
+        CONTROLS.wheel.unsubscribe(configEditWheelListener);
+    } else {
+        CONTROLS.button1.unsubscribe(configExitButtonListener);
+        CONTROLS.button2.unsubscribe(configEditButtonListener);
+        // CONTROLS.button3.unsubscribe(openTelemetryButtonListener);
+        CONTROLS.button4.unsubscribe(configPIDButtonListener);
+        CONTROLS.button5.unsubscribe(configESCButtonListener);
+
+        CONTROLS.arrows.unsubscribe(configLeftRightButtonListener);
+    }
+    editing = false;
 }
 
 void FlightConfigScreen::drawESC() {
@@ -493,7 +564,7 @@ void FlightConfigScreen::drawPID() {
     UI.getDisplay()->setDrawColor(0);
     UI.getDisplay()->setCursor(178, 53);
     UI.getDisplay()->setFont(u8g2_font_t0_16b_te);
-    UI.getDisplay()->print("KP     KI    KD   MaxI");
+    UI.getDisplay()->print("KP     KI     KD    MaxI");
 
     UI.getDisplay()->drawRFrame(148, 69, 220, 53, 5);
     UI.getDisplay()->drawBox(148, 69, 13, 53);
@@ -512,7 +583,7 @@ void FlightConfigScreen::drawPID() {
 
         UI.getDisplay()->setDrawColor(0);
         if (i == selection - 5)
-            UI.getDisplay()->drawFrame(x-5, y-1, 50, 15);
+            UI.getDisplay()->drawFrame(x - 5, y - 1, 50, 15);
         UI.getDisplay()->setCursor(x, y);
 
         UI.getDisplay()->print(PID_FIELDS[i]->getText());

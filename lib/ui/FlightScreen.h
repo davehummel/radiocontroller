@@ -49,6 +49,7 @@ class FlightConfigScreen : Screen, RunnableTask {
     int32_t partialValueChange = 0;
 
     uint8_t selection = 0;
+    bool editing = false;
 
     int8_t runtime = 5;
     uint8_t escVals [4] = {0};
@@ -62,10 +63,16 @@ class FlightConfigScreen : Screen, RunnableTask {
 
     String &getTitle() { return title; }
 
-    void toggleTelemetry();
-    void moveSelection(int8_t move);
-    void changeValue(int8_t value);
     void sendESC();
+    void sendPIDSettings();
+    void toggleTelemetry();
+
+    void moveSelection(int8_t move);
+    void startChange();
+    void saveChange();
+    void cancelChange();
+    void changeValue(int8_t value);
+
 };
 
 

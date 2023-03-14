@@ -76,6 +76,7 @@ class SustainConnectionAction : RadioAction, RunnableTask {
     bool getDirectRoll() { return directRoll; }
 
     void setESC(uint8_t runtimeSeconds,uint8_t* escVals);
+    void setPIDConfig();
 };
 
 class TransmitCommandAction : RadioAction, RunnableTask {
