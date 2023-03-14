@@ -406,26 +406,16 @@ void configEditArrowListener() {
     }
 }
 
-void configEditButtonListener() {
-    if (CONTROLS.button2.isPressed()) {
-        FLIGHT_CONFIG_SCREEN.startChange();
-    }
-}
+void configEditButtonListener() { FLIGHT_CONFIG_SCREEN.startChange(); }
+
+void configResetButtonListener() { FLIGHT_CONFIG_SCREEN.resetValue(); }
 
 void configSaveButtonListener() { FLIGHT_CONFIG_SCREEN.saveChange(); }
 void configCancelButtonListener() { FLIGHT_CONFIG_SCREEN.cancelChange(); }
 
-void configESCButtonListener() {
-    if (CONTROLS.button5.isPressed()) {
-        FLIGHT_CONFIG_SCREEN.sendESC();
-    }
-}
+void configESCButtonListener() { FLIGHT_CONFIG_SCREEN.sendESC(); }
 
-void configPIDButtonListener() {
-    if (CONTROLS.button4.isPressed()) {
-        FLIGHT_CONFIG_SCREEN.sendPIDSettings();
-    }
-}
+void configPIDButtonListener() { FLIGHT_CONFIG_SCREEN.sendPIDSettings(); }
 
 void FlightConfigScreen::moveSelection(int8_t move) {
     partialValueChange = 0;
@@ -438,7 +428,10 @@ void FlightConfigScreen::moveSelection(int8_t move) {
     }
 }
 
-void FlightConfigScreen::changeValue(int8_t change) {
+void FlightConfigScreen::changeValue(int16_t change) {
+
+    if (!editing)
+        return;
 
     partialValueChange += change % 2;
 
@@ -475,25 +468,48 @@ void FlightConfigScreen::changeValue(int8_t change) {
 }
 
 void FlightConfigScreen::startChange() {
-    if (editing == true)
+    if (editing)
         return;
     editing = true;
     exitSelectMode();
-    CONTROLS.wheel.subscribe(configEditWheelListener);
-    CONTROLS.button1.subscribe(configEditWheelListener);
-
-    CONTROLS.button1.setLEDValue(255);
-    CONTROLS.button2.setLEDValue(0);
-    CONTROLS.button3.setLEDValue(255);
-    CONTROLS.button4.setLEDValue(255);
-    CONTROLS.button5.setLEDValue(0);
+    setupEditMode();
 }
 
 void FlightConfigScreen::saveChange() {
     if (!editing)
         return;
+    editing = false;
+
     if (selection > 4)
         PID_FIELDS[selection - 5]->save();
+        
+    exitEditMode();
+    setupSelectMode();
+}
+
+void FlightConfigScreen::cancelChange() {
+    if (!editing)
+        return;
+    editing = false;
+    if (selection > 4)
+        PID_FIELDS[selection - 5]->reset();
+    exitEditMode();
+    setupSelectMode();
+}
+
+void FlightConfigScreen::resetValue() {
+    if (!editing)
+        return;
+    editing = false;
+
+    if (selection == 0)
+        runtime = 5;
+    else if (selection > 4)
+        PID_FIELDS[selection - 5]->overwriteWithDefault();
+    else
+        escVals[selection - 1] = 0;
+    exitEditMode();
+    setupSelectMode();
 }
 
 void FlightConfigScreen::sendESC() { sustainConnectionAction.setESC(runtime, escVals); }
@@ -501,10 +517,10 @@ void FlightConfigScreen::sendESC() { sustainConnectionAction.setESC(runtime, esc
 void FlightConfigScreen::sendPIDSettings() { sustainConnectionAction.setPIDConfig(); }
 
 void FlightConfigScreen::exitEditMode() {
+    CONTROLS.button1.unsubscribe(configResetButtonListener);
     CONTROLS.button3.unsubscribe(configCancelButtonListener);
-    CONTROLS.button4.unsubscribe(configEditArrowListener);
-    CONTROLS.arrows.unsubscribe(configSaveButtonListener);
-
+    CONTROLS.button4.unsubscribe(configSaveButtonListener);
+    CONTROLS.arrows.unsubscribe(configEditArrowListener);
     CONTROLS.wheel.unsubscribe(configEditWheelListener);
 }
 
@@ -517,20 +533,36 @@ void FlightConfigScreen::exitSelectMode() {
     CONTROLS.arrows.unsubscribe(configNavLeftRightButtonListener);
 }
 
-void FlightConfigScreen::setupEditMode() {}
+void FlightConfigScreen::setupEditMode() {
+    CONTROLS.button1.subscribe(configResetButtonListener);
+    CONTROLS.button3.subscribe(configCancelButtonListener);
+    CONTROLS.button4.subscribe(configSaveButtonListener);
+    CONTROLS.arrows.subscribe(configEditArrowListener);
+    CONTROLS.wheel.subscribe(configEditWheelListener);
+    CONTROLS.button1.setLEDValue(255);
+    CONTROLS.button2.setLEDValue(0);
+    CONTROLS.button3.setLEDValue(255);
+    CONTROLS.button4.setLEDValue(255);
+    CONTROLS.button5.setLEDValue(0);
+
+    drawNavMenu(EMPTY_TITLE, "Save", "Cancel", EMPTY_TITLE, EMPTY_TITLE, "Reset");
+}
 
 void FlightConfigScreen::setupSelectMode() {
     CONTROLS.button1.setLEDValue(255);
     CONTROLS.button2.setLEDValue(255);
+    // CONTROLS.button3.setLEDValue(255);
+    CONTROLS.button4.setLEDValue(255);
+    CONTROLS.button5.setLEDValue(255);
+
     CONTROLS.button1.subscribe(configExitButtonListener);
     CONTROLS.button2.subscribe(configEditButtonListener);
     // CONTROLS.button3.subscribe(openTelemetryButtonListener);
-    // CONTROLS.button3.setLEDValue(255);
+
     CONTROLS.button4.subscribe(configPIDButtonListener);
-    CONTROLS.button4.setLEDValue(255);
     CONTROLS.button5.subscribe(configESCButtonListener);
-    CONTROLS.button5.setLEDValue(255);
     CONTROLS.arrows.subscribe(configNavLeftRightButtonListener);
+    drawNavMenu("Set ESC", "Set PID", /*"Telemetry"*/ EMPTY_TITLE, EMPTY_TITLE, "Edit", "Fly", true, true, true, true, true);
 }
 
 void FlightConfigScreen::start() {
@@ -632,8 +664,6 @@ void FlightConfigScreen::run(TIME_INT_t time) {
 
     drawESC();
     drawPID();
-
-    drawNavMenu("Set ESC", "Set PID", "Telemetry", EMPTY_TITLE, EMPTY_TITLE, "Fly", true, true, true, false, true);
 
     UI.requestDraw();
 }

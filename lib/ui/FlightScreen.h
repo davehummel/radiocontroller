@@ -74,7 +74,8 @@ class FlightConfigScreen : Screen, RunnableTask {
     void startChange();
     void saveChange();
     void cancelChange();
-    void changeValue(int8_t value);
+    void resetValue();
+    void changeValue(int16_t value);
 };
 
 extern FlightScreen FLIGHT_SCREEN;
