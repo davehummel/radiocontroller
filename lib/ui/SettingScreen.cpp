@@ -30,7 +30,7 @@ void editSettingArrowListener() {
 }
 
 void editSettingButtonListener() {
-    if (CONTROLS.button5.isPressed()) {
+    if (CONTROLS.button2.isPressed()) {
         SETTINGS_SCREEN.startChange();
     }
 }
@@ -553,8 +553,8 @@ void SettingsScreen::decrementTab() {
 
 void SettingsScreen::updateButtonLights() {
     CONTROLS.button1.setLEDValue(255 * !FIELDS[index]->readOnly());
-    CONTROLS.button5.setLEDValue(255 * !FIELDS[index]->readOnly());
-    CONTROLS.button2.setLEDValue(0);
+    CONTROLS.button2.setLEDValue(255 * !FIELDS[index]->readOnly());
+    CONTROLS.button5.setLEDValue(0);
     CONTROLS.button3.setLEDValue(0);
     CONTROLS.button4.setLEDValue(0);
 
@@ -608,7 +608,7 @@ void SettingsScreen::start() {
         CONTROLS.button1.subscribe(resetFieldSettingButtonListener);
         CONTROLS.arrows.subscribe(nextSettingArrowListener);
         CONTROLS.wheel.subscribe(changeSettingWheelListener);
-        CONTROLS.button5.subscribe(editSettingButtonListener);
+        CONTROLS.button2.subscribe(editSettingButtonListener);
         link = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(100, FrequencyUnitEnum::milli));
 
         UI.getDisplay()->setDrawColor(1);
@@ -624,8 +624,8 @@ void SettingsScreen::stop() {
         CONTROLS.button1.unsubscribe(resetFieldSettingButtonListener);
         CONTROLS.arrows.unsubscribe(nextSettingArrowListener);
         CONTROLS.wheel.unsubscribe(changeSettingWheelListener);
-        CONTROLS.button5.unsubscribe(editSettingButtonListener);
-        CONTROLS.button5.setLEDValue(0);
+        CONTROLS.button2.unsubscribe(editSettingButtonListener);
+        CONTROLS.button2.setLEDValue(0);
         link->cancel();
         link = NULL;
     }

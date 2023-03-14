@@ -7,7 +7,7 @@ class FlightScreen : Screen, RunnableTask {
   private:
     String title = "Flight Control";
 
-    enum FlightScreenState { OFF, SEARCHING, CONNECTED , ENGAGED, CONFIG, PAUSED } state = OFF;
+    enum FlightScreenState { OFF, SEARCHING, CONNECTED, ENGAGED, CONFIG, PAUSED } state = OFF;
 
     ScheduledLink *link = NULL;
 
@@ -22,7 +22,6 @@ class FlightScreen : Screen, RunnableTask {
 
     String &getTitle() { return title; }
 
-    
     void toggleRadio();
     void toggleEngage();
     void startConfig();
@@ -38,7 +37,6 @@ class FlightConfigScreen : Screen, RunnableTask {
 
     String title = "Flight Config";
 
-
     ScheduledLink *link = NULL;
 
     void drawESC();
@@ -49,9 +47,15 @@ class FlightConfigScreen : Screen, RunnableTask {
     int32_t partialValueChange = 0;
 
     uint8_t selection = 0;
+    bool editing = false;
 
     int8_t runtime = 5;
-    uint8_t escVals [4] = {0};
+    uint8_t escVals[4] = {0};
+
+    void setupEditMode();
+    void exitEditMode();
+    void setupSelectMode();
+    void exitSelectMode();
 
   public:
     FlightConfigScreen();
@@ -62,15 +66,18 @@ class FlightConfigScreen : Screen, RunnableTask {
 
     String &getTitle() { return title; }
 
-    void toggleTelemetry();
-    void moveSelection(int8_t move);
-    void changeValue(int8_t value);
     void sendESC();
-};
+    void sendPIDSettings();
+    void toggleTelemetry();
 
+    void moveSelection(int8_t move);
+    void startChange();
+    void saveChange();
+    void cancelChange();
+    void changeValue(int8_t value);
+};
 
 extern FlightScreen FLIGHT_SCREEN;
 extern FlightConfigScreen FLIGHT_CONFIG_SCREEN;
-
 
 #endif

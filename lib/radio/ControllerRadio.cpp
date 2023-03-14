@@ -271,6 +271,12 @@ void SustainConnectionAction::setESC(uint8_t runtimeSeconds, uint8_t *escVals) {
     requestSend();
 }
 
+void SustainConnectionAction::setPIDConfig() {
+    sharedPIDConfig = false; // returning PID sent state to false to ensure it is resent and verified
+    requestSend();
+}
+
+
 void flightInputListener() { transmitCommandAction.changed(); }
 
 void TransmitCommandAction::onStart() {
