@@ -30,9 +30,7 @@ void editSettingArrowListener() {
 }
 
 void editSettingButtonListener() {
-    if (CONTROLS.button2.isPressed()) {
         SETTINGS_SCREEN.startChange();
-    }
 }
 
 void changeSettingWheelListener() { SETTINGS_SCREEN.changeValue(CONTROLS.wheel.getDelta()); }
@@ -41,9 +39,7 @@ void saveFieldSettingButtonListener() { SETTINGS_SCREEN.saveChange(); }
 void cancelFieldSettingButtonListener() { SETTINGS_SCREEN.cancelChange(); }
 
 void resetFieldSettingButtonListener() {
-    if (CONTROLS.button1.isPressed()) {
         SETTINGS_SCREEN.overwriteWithDefault();
-    }
 }
 
 class : public SettingField {
@@ -75,7 +71,7 @@ class : public SettingField {
         modified = false;
     };
 
-    void reset() { modified = false; }
+    void cancel() { modified = false; }
 
     const char *getText() {
         if (!modified) {
@@ -119,7 +115,7 @@ class : public SettingField {
         modified = false;
     };
 
-    void reset() { modified = false; }
+    void cancel() { modified = false; }
 
     const char *getText() {
         if (!modified) {
@@ -159,7 +155,7 @@ class : public SettingField {
         modified = false;
     };
 
-    void reset() { modified = false; }
+    void cancel() { modified = false; }
 
     const char *getText() {
         if (!modified) {
@@ -199,7 +195,7 @@ class : public SettingField {
         modified = false;
     };
 
-    void reset() { modified = false; }
+    void cancel() { modified = false; }
 
     const char *getText() {
         if (!modified) {
@@ -239,7 +235,7 @@ class : public SettingField {
         modified = false;
     };
 
-    void reset() { modified = false; }
+    void cancel() { modified = false; }
 
     const char *getText() {
         if (!modified) {
@@ -281,7 +277,7 @@ class : public SettingField {
         modified = false;
     };
 
-    void reset() { modified = false; }
+    void cancel() { modified = false; }
 
     const char *getText() {
         if (!modified) {
@@ -494,7 +490,7 @@ void SettingsScreen::changeValue(int val) {
 void SettingsScreen::cancelChange() {
     if (editing) {
         editing = false;
-        FIELDS[index]->reset();
+        FIELDS[index]->cancel();
         exitEditMode();
     }
 }
@@ -558,7 +554,7 @@ void SettingsScreen::updateButtonLights() {
     CONTROLS.button3.setLEDValue(0);
     CONTROLS.button4.setLEDValue(0);
 
-    drawNavMenu(FIELDS[index]->readOnly() ? EMPTY_TITLE : "Edit", EMPTY_TITLE, EMPTY_TITLE, "Exit", EMPTY_TITLE,
+    drawNavMenu(EMPTY_TITLE, EMPTY_TITLE, EMPTY_TITLE, "Exit", FIELDS[index]->readOnly() ? EMPTY_TITLE : "Edit",
                 FIELDS[index]->readOnly() ? EMPTY_TITLE : "Reset");
 }
 
@@ -633,7 +629,7 @@ void SettingsScreen::stop() {
 
 void SettingsScreen::run(TIME_INT_t time) {
     UI.getDisplay()->setDrawColor(1);
-    UI.getDisplay()->drawBox(0, 25, 400, 149);
+    UI.getDisplay()->drawBox(0, 25, 400, 155);
     uint8_t currentLine = getLine(index);
     uint8_t startLine = max(0, currentLine - 3);
     uint8_t endLine = min(LINE_COUNT - 1, startLine + 6);

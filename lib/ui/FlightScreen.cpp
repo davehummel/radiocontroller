@@ -1,4 +1,5 @@
 #include "FlightScreen.h"
+#include "NavScreen.h"
 #include <ControllerRadio.h>
 
 FlightScreen FLIGHT_SCREEN;
@@ -44,6 +45,12 @@ void drawOrientations(uint16_t topX, uint16_t topY, uint16_t current[3], uint16_
     UI.getDisplay()->printf("%5.1f->%5.1f", convertHeading(current[2]), convertHeading(target[2]));
 }
 
+void flightExitButtonListener() {
+    if (CONTROLS.wheelBtn.isPressed()) {
+        FLIGHT_SCREEN.exitEvent();
+    }
+}
+
 void radioActivateListener() {
     if (CONTROLS.button1.isPressed()) {
         FLIGHT_SCREEN.toggleRadio();
@@ -76,6 +83,7 @@ void toggleDirYaw() {
 
 void configEnableButtonListener() {
     if (CONTROLS.wheelBtn.isPressed()) {
+        FDOS_LOG.println("Config Enable Listener Clicked");
         FLIGHT_SCREEN.startConfig();
     }
 }
@@ -90,9 +98,12 @@ void FlightScreen::startConfig() {
     switch (state) {
     case CONNECTED:
         state = CONFIG;
+        FDOS_LOG.println("startConfig called in ConfigState, setting screen!");
         ROOT_UI.setScreen((Screen *)&FLIGHT_CONFIG_SCREEN);
         break;
     default:
+        FDOS_LOG.print("startConfig called but in wrong state");
+        FDOS_LOG.println(state);
         break;
     }
 }
@@ -101,27 +112,27 @@ void FlightScreen::toggleEngage() {
     if (state == ENGAGED) {
         state = CONNECTED;
         sustainConnectionAction.setEngineEngaged(false);
-        CONTROLS.wheelBtn.subscribe(configEnableButtonListener);
     } else if (state == CONNECTED && CONTROLS.joy1V.getUnsignedValue() == 0) {
         state = ENGAGED;
         sustainConnectionAction.setEngineEngaged(true);
-        CONTROLS.wheelBtn.unsubscribe(configEnableButtonListener);
     }
 }
 
+void FlightScreen::exitEvent() {
+    if (state == OFF || state == PAUSED)
+        ROOT_UI.setScreen((Screen *)&NAV_SCREEN);
+}
+
 void FlightScreen::start() {
+    FDOS_LOG.println("FlightScreen start");
     link = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(250, FrequencyUnitEnum::milli));
 
     CONTROLS.button1.setLEDValue(255);
     CONTROLS.button1.subscribe(radioActivateListener);
     CONTROLS.button2.subscribe(motorEngageListener);
-    if (state == CONFIG) {
-        CONTROLS.wheelBtn.subscribe(configEnableButtonListener);
-        state = CONNECTED;
-    } else {
-        CONTROLS.wheelBtn.subscribe(navEnableButtonListener);
-        state = OFF;
-    }
+
+    CONTROLS.wheelBtn.subscribe(configEnableButtonListener);
+    CONTROLS.wheelBtn.subscribe(flightExitButtonListener);
 
     CONTROLS.button3.subscribe(toggleDirPitch);
     CONTROLS.button4.subscribe(toggleDirRoll);
@@ -137,13 +148,14 @@ void FlightScreen::start() {
 }
 
 void FlightScreen::stop() {
-    if (state != CONFIG)
+    FDOS_LOG.println("FlightScreen stop");
+    if (state != CONFIG) {
         RADIOTASK.removeAllActions();
+        state = OFF;
+    }
 
-    if (state != CONNECTED)
-        CONTROLS.wheelBtn.unsubscribe(configEnableButtonListener);
-    else
-        CONTROLS.wheelBtn.unsubscribe(navEnableButtonListener);
+    CONTROLS.wheelBtn.unsubscribe(configEnableButtonListener);
+    CONTROLS.wheelBtn.unsubscribe(flightExitButtonListener);
 
     CONTROLS.button1.unsubscribe(radioActivateListener);
     CONTROLS.button2.unsubscribe(motorEngageListener);
@@ -205,13 +217,11 @@ void FlightScreen::run(TIME_INT_t time) {
                 UI.getDisplay()->drawBox(20, 50, 40, 40);
                 break;
             }
-            drawNavMenu(EMPTY_TITLE, EMPTY_TITLE, EMPTY_TITLE, "Exit", EMPTY_TITLE, "Stop", false, false, false, false, true);
+            drawNavMenu(EMPTY_TITLE, EMPTY_TITLE, EMPTY_TITLE,EMPTY_TITLE, EMPTY_TITLE, "Stop", false, false, false, false, true);
             UI.requestDraw();
             break;
         case FindReceiverAction::CONNECTED:
             state = CONNECTED;
-            CONTROLS.wheelBtn.unsubscribe(navEnableButtonListener);
-            CONTROLS.wheelBtn.subscribe(configEnableButtonListener);
         default:
             return;
         }
@@ -273,6 +283,7 @@ void FlightScreen::run(TIME_INT_t time) {
         break;
     }
     case CONFIG:
+        state = CONNECTED;
         break;
     }
 }
@@ -366,7 +377,6 @@ void FlightScreen::toggleRadio() {
     CONTROLS.button2.setLEDValue(0);
     state = PAUSED;
     RADIOTASK.removeAllActions();
-    CONTROLS.wheelBtn.subscribe(navEnableButtonListener);
     return;
 }
 
@@ -375,7 +385,9 @@ void FlightScreen::toggleRadio() {
  **/
 
 void configExitButtonListener() {
-    if (CONTROLS.button1.isPressed()) {
+    FDOS_LOG.println("Config Exit Listener Clicked");
+    if (CONTROLS.wheelBtn.isPressed()) {
+        FDOS_LOG.println("And is respected!");
         ROOT_UI.setScreen((Screen *)&FLIGHT_SCREEN);
     }
 }
@@ -406,16 +418,34 @@ void configEditArrowListener() {
     }
 }
 
-void configEditButtonListener() { FLIGHT_CONFIG_SCREEN.startChange(); }
+void configEditButtonListener() {
+    if (CONTROLS.button2.isPressed())
+        FLIGHT_CONFIG_SCREEN.startChange();
+}
 
-void configResetButtonListener() { FLIGHT_CONFIG_SCREEN.resetValue(); }
+void configResetButtonListener() {
+    if (CONTROLS.button1.isPressed())
+        FLIGHT_CONFIG_SCREEN.resetValue();
+}
 
-void configSaveButtonListener() { FLIGHT_CONFIG_SCREEN.saveChange(); }
-void configCancelButtonListener() { FLIGHT_CONFIG_SCREEN.cancelChange(); }
+void configSaveButtonListener() {
+    if (CONTROLS.button4.isPressed())
+        FLIGHT_CONFIG_SCREEN.saveChange();
+}
+void configCancelButtonListener() {
+    if (CONTROLS.button3.isPressed())
+        FLIGHT_CONFIG_SCREEN.cancelChange();
+}
 
-void configESCButtonListener() { FLIGHT_CONFIG_SCREEN.sendESC(); }
+void configESCButtonListener() {
+    if (CONTROLS.button5.isPressed())
+        FLIGHT_CONFIG_SCREEN.sendESC();
+}
 
-void configPIDButtonListener() { FLIGHT_CONFIG_SCREEN.sendPIDSettings(); }
+void configPIDButtonListener() {
+    if (CONTROLS.button4.isPressed())
+        FLIGHT_CONFIG_SCREEN.sendPIDSettings();
+}
 
 void FlightConfigScreen::moveSelection(int8_t move) {
     partialValueChange = 0;
@@ -482,25 +512,23 @@ void FlightConfigScreen::saveChange() {
 
     if (selection > 4)
         PID_FIELDS[selection - 5]->save();
-        
+
     exitEditMode();
     setupSelectMode();
 }
 
 void FlightConfigScreen::cancelChange() {
-    if (!editing)
-        return;
-    editing = false;
-    if (selection > 4)
-        PID_FIELDS[selection - 5]->reset();
+    if (selection == 0)
+        runtime = 5;
+    else if (selection > 4)
+        PID_FIELDS[selection - 5]->cancel();
+    else
+        escVals[selection - 1] = 0;
     exitEditMode();
     setupSelectMode();
 }
 
 void FlightConfigScreen::resetValue() {
-    if (!editing)
-        return;
-    editing = false;
 
     if (selection == 0)
         runtime = 5;
@@ -508,8 +536,12 @@ void FlightConfigScreen::resetValue() {
         PID_FIELDS[selection - 5]->overwriteWithDefault();
     else
         escVals[selection - 1] = 0;
-    exitEditMode();
-    setupSelectMode();
+
+    if (editing) {
+        editing = false;
+        exitEditMode();
+        setupSelectMode();
+    }
 }
 
 void FlightConfigScreen::sendESC() { sustainConnectionAction.setESC(runtime, escVals); }
@@ -525,7 +557,8 @@ void FlightConfigScreen::exitEditMode() {
 }
 
 void FlightConfigScreen::exitSelectMode() {
-    CONTROLS.button1.unsubscribe(configExitButtonListener);
+    CONTROLS.wheelBtn.unsubscribe(configExitButtonListener);
+    CONTROLS.button1.unsubscribe(configResetButtonListener);
     CONTROLS.button2.unsubscribe(configEditButtonListener);
     // CONTROLS.button3.unsubscribe(openTelemetryButtonListener);
     CONTROLS.button4.unsubscribe(configPIDButtonListener);
@@ -545,7 +578,7 @@ void FlightConfigScreen::setupEditMode() {
     CONTROLS.button4.setLEDValue(255);
     CONTROLS.button5.setLEDValue(0);
 
-    drawNavMenu(EMPTY_TITLE, "Save", "Cancel", EMPTY_TITLE, EMPTY_TITLE, "Reset");
+    drawNavMenu(EMPTY_TITLE, "Save", "Cancel", EMPTY_TITLE, EMPTY_TITLE, "Reset", false, true, true, false, true);
 }
 
 void FlightConfigScreen::setupSelectMode() {
@@ -555,17 +588,19 @@ void FlightConfigScreen::setupSelectMode() {
     CONTROLS.button4.setLEDValue(255);
     CONTROLS.button5.setLEDValue(255);
 
-    CONTROLS.button1.subscribe(configExitButtonListener);
+    CONTROLS.wheelBtn.subscribe(configExitButtonListener);
+    CONTROLS.button1.subscribe(configResetButtonListener);
     CONTROLS.button2.subscribe(configEditButtonListener);
     // CONTROLS.button3.subscribe(openTelemetryButtonListener);
 
     CONTROLS.button4.subscribe(configPIDButtonListener);
     CONTROLS.button5.subscribe(configESCButtonListener);
     CONTROLS.arrows.subscribe(configNavLeftRightButtonListener);
-    drawNavMenu("Set ESC", "Set PID", /*"Telemetry"*/ EMPTY_TITLE, EMPTY_TITLE, "Edit", "Fly", true, true, true, true, true);
+    drawNavMenu("Set ESC", "Set PID", /*"Telemetry"*/ EMPTY_TITLE, "Exit", "Edit", "Reset", true, true, true, true, true);
 }
 
 void FlightConfigScreen::start() {
+    FDOS_LOG.println("FlightConfigScreen start");
     link = EXECUTOR.schedule((RunnableTask *)this, EXECUTOR.getTimingPair(250, FrequencyUnitEnum::milli));
 
     setupSelectMode();
@@ -574,8 +609,9 @@ void FlightConfigScreen::start() {
 }
 
 void FlightConfigScreen::stop() {
+    FDOS_LOG.println("FlightConfigScreen stop");
     link->cancel();
-    CONTROLS.arrows.unsubscribe(configNavLeftRightButtonListener);
+
     if (editing) {
         exitEditMode();
     } else {
@@ -651,7 +687,7 @@ void FlightConfigScreen::run(TIME_INT_t time) {
         return;
     }
     UI.getDisplay()->setDrawColor(1);
-    UI.getDisplay()->drawBox(0, 25, 400, 215);
+    UI.getDisplay()->drawBox(0, 25, 400, 155);
     UI.getDisplay()->setDrawColor(0);
 
     UI.getDisplay()->setCursor(10, 28);

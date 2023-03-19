@@ -30,6 +30,8 @@ class PhysicalInput {
     const static uint8_t MAX_LISTENERS = 10;
     bool changed;
     FunctionPointer listeners[MAX_LISTENERS] = {0};
+    FunctionPointer listenerReplayCopy[MAX_LISTENERS] = {0};
+    bool subscriptionChanged = false;
 };
 
 class JoyInput : public PhysicalInput {

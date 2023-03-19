@@ -6,6 +6,10 @@ bool PhysicalInput::update(bool mute) {
     if (changed) {
         if (mute)
             return false;
+        if (subscriptionChanged){
+            memcpy(listenerReplayCopy,listeners,MAX_LISTENERS);
+            subscriptionChanged = false;
+        }
         for (uint8_t i = 0; i < MAX_LISTENERS; i++) {
             if (listeners[i] == NULL)
                 break;
@@ -19,6 +23,7 @@ bool PhysicalInput::subscribe(FunctionPointer func) {
     for (uint8_t i = 0; i < MAX_LISTENERS; i++) {
         if (listeners[i] == NULL) {
             listeners[i] = func;
+                 subscriptionChanged = true;
             return true;
         }
     }
@@ -33,6 +38,7 @@ bool PhysicalInput::unsubscribe(FunctionPointer func) {
         } else if (listeners[i] == func) {
             listeners[i] = NULL;
             found = true;
+            subscriptionChanged = true;
         }
     }
     return found;

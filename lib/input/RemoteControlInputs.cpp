@@ -31,7 +31,7 @@ RemoteControlInputSet::RemoteControlInputSet()
 
 void RemoteControlInputSet::start(TIME_INT_t _intervalMicros) {
     intervalMicros = _intervalMicros;
-    mutePeriod = 10; // let input signals settle for 10 iterations of the inreval
+    mutePeriod = 10; // let input signals settle for 10 iterations of the interval
     EXECUTOR.schedule((RunnableTask *)&CONTROLS, intervalMicros, intervalMicros);
 }
 

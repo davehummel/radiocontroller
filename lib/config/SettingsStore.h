@@ -38,7 +38,7 @@ class SettingField {
 
     virtual void save(){};
 
-    virtual void reset(){};
+    virtual void cancel(){};
 
     virtual void overwriteWithDefault(){};
 
@@ -57,7 +57,7 @@ class LabelField : public SettingField {
 
     void save(){};
 
-    void reset(){};
+    void cancel(){};
 
     const char *getText() { return text.c_str(); }
 };
@@ -117,7 +117,7 @@ class EEPROMField : public SettingField {
 
     void save();
 
-    void reset();
+    void cancel();
 
     void overwriteWithDefault();
 

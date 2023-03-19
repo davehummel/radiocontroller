@@ -30,17 +30,17 @@ EEPROMField field_radio_Power(1, 2ul, 20ul, 10,1);
 EEPROMField field_PID_yaw_kp(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_yaw_ki(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_yaw_kd(0.0f, 2.0, .1, 3);
-EEPROMField field_PID_yaw_max_i(2, 0ul, 2000ul, 100ul,1);
+EEPROMField field_PID_yaw_max_i(2, 0ul, 20000ul, 100ul,1);
 
 EEPROMField field_PID_roll_kp(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_roll_ki(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_roll_kd(0.0f, 2.0, .1, 3);
-EEPROMField field_PID_roll_max_i(2, 0ul, 2000ul, 100ul,1);
+EEPROMField field_PID_roll_max_i(2, 0ul, 20000ul, 100ul,1);
 
 EEPROMField field_PID_pitch_kp(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_pitch_ki(0.0f, 2.0, .1, 3);
 EEPROMField field_PID_pitch_kd(0.0f, 2.0, .1, 3);
-EEPROMField field_PID_pitch_max_i(2, 0ul, 2000ul, 100ul,1);
+EEPROMField field_PID_pitch_max_i(2, 0ul, 20000ul, 100ul,1);
 
 const uint8_t EEFIELD_COUNT = 35;
 EEPROMField *EEPROM_FIELDS[EEFIELD_COUNT] = {
@@ -192,7 +192,7 @@ void EEPROMField::save() {
     saveEEPROM();
 }
 
-void EEPROMField::reset() {
+void EEPROMField::cancel() {
     modified = false;
     readEEPROM();
 }

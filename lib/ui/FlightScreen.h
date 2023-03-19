@@ -25,6 +25,8 @@ class FlightScreen : Screen, RunnableTask {
     void toggleRadio();
     void toggleEngage();
     void startConfig();
+    void exitEvent();
+
 };
 
 class FlightConfigScreen : Screen, RunnableTask {
@@ -64,7 +66,8 @@ class FlightConfigScreen : Screen, RunnableTask {
 
     void run(TIME_INT_t time);
 
-    String &getTitle() { return title; }
+    String &getTitle() { return title; }\
+   
 
     void sendESC();
     void sendPIDSettings();
