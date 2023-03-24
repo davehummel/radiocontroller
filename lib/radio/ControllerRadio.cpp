@@ -205,7 +205,7 @@ uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpect
             return sizeof(config);
         } else {
             responseExpected = true;
-            transmitter_heartbeat_t hb(motorsEngaged, directPitch, directYaw, directRoll);
+            transmitter_heartbeat_t hb(motorsEngaged, directPitch, directYaw, directRoll,telemEnabled);
             FDOS_LOG.printf("Direct S:%i P:%i Y:%i R:%i\n", hb.PIDMode, hb.isDirectPitch(), hb.isDirectRoll(), hb.isDirectYaw());
             FDOS_LOG.printf("Direct P:%i Y:%i R:%i\n", directPitch, directRoll, directYaw);
             RADIOTASK.mute(TRANSMITTER_HB_ECHO_DELAY_MILLIS);
@@ -256,10 +256,10 @@ void SustainConnectionAction::setEngineEngaged(bool engaged) {
     motorsEngaged = engaged;
     if (engaged) {
         RADIOTASK.addAction((RadioAction *)&transmitCommandAction);
-        requestSend();
     } else {
         RADIOTASK.removeAction((RadioAction *)&transmitCommandAction);
     }
+    requestSend();
 }
 
 void SustainConnectionAction::setESC(uint8_t runtimeSeconds, uint8_t *escVals) {
@@ -268,6 +268,11 @@ void SustainConnectionAction::setESC(uint8_t runtimeSeconds, uint8_t *escVals) {
     directESC.escVals[1] = escVals[1];
     directESC.escVals[2] = escVals[2];
     directESC.escVals[3] = escVals[3];
+    requestSend();
+}
+
+void SustainConnectionAction::setTelem(bool telemetryEnabled) {
+    telemEnabled=telemetryEnabled;
     requestSend();
 }
 

@@ -40,6 +40,8 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     bool directPitch = true, directYaw = true, directRoll = true;
 
+    bool telemEnabled = false;
+
     char errorMessage[255] = "\0";
 
     direct_esc_t directESC;
@@ -76,6 +78,7 @@ class SustainConnectionAction : RadioAction, RunnableTask {
     bool getDirectRoll() { return directRoll; }
 
     void setESC(uint8_t runtimeSeconds,uint8_t* escVals);
+    void setTelem(bool telemEnabled);
     void setPIDConfig();
 };
 
