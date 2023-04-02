@@ -2,6 +2,7 @@
 #define flight_screen_H__
 
 #include "Screens.h"
+#include "PID.h"
 
 class FlightScreen : Screen, RunnableTask {
   private:
@@ -81,21 +82,28 @@ class FlightConfigScreen : Screen, RunnableTask {
 
 class FlightTelemScreen : Screen, RunnableTask {
   private:
-    static const int8_t maxSelection = 16;
-
-    static const uint16_t PID_FIELD_COUNT = 12;
-
-    SettingField *PID_FIELDS[PID_FIELD_COUNT];
+    static const uint16_t BUFFER_SIZE = 12;
 
     String title = "Flight Telemetry";
 
     ScheduledLink *link = NULL;
 
     uint16_t selection = 0;
-    uint16_t sampleCount = 0;
-    bool loadComplete = 0;
-
     int16_t partialValueChange = 0;
+
+    uint8_t stateYPR= 0;
+    bool transmitAll = false;
+
+    pid_response_telemetry_t telemResponseData;
+
+    void requestTelemData();  
+    
+    void drawTelemScroll(uint16_t index,uint16_t total);
+    void drawTelemData(pid_state_t* samples,uint8_t size);
+
+    PID* pitchPID=NULL;
+    PID* rollPID=NULL;
+    PID* yawPID=NULL;
 
   public:
     void start();
@@ -109,6 +117,11 @@ class FlightTelemScreen : Screen, RunnableTask {
     void toTop();
     void toBottom();
     void dumpToSerial();
+    void showPitch();
+    void showRoll();
+    void showYaw();
+
+    void onTelemReceived(pid_response_telemetry_t telem);
 };
 
 extern FlightScreen FLIGHT_SCREEN;

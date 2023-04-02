@@ -63,15 +63,15 @@ void motorEngageListener() {
     }
 }
 
-void toggleDirPitch() {
+void toggleDirRoll() {
     if (CONTROLS.button3.isPressed()) {
-        sustainConnectionAction.setDirectPitch(!sustainConnectionAction.getDirectPitch());
+        sustainConnectionAction.setDirectRoll(!sustainConnectionAction.getDirectRoll());
     }
 }
 
-void toggleDirRoll() {
+void toggleDirPitch() {
     if (CONTROLS.button4.isPressed()) {
-        sustainConnectionAction.setDirectRoll(!sustainConnectionAction.getDirectRoll());
+        sustainConnectionAction.setDirectPitch(!sustainConnectionAction.getDirectPitch());
     }
 }
 
@@ -97,8 +97,8 @@ void telemEnableButtonListener() {
 
 FlightConfigScreen::FlightConfigScreen()
     : PID_FIELDS{
-          &field_PID_yaw_kp,  &field_PID_yaw_ki,     &field_PID_yaw_kd,   &field_PID_yaw_max_i, &field_PID_roll_kp,  &field_PID_roll_ki,
-          &field_PID_roll_kd, &field_PID_roll_max_i, &field_PID_pitch_kp, &field_PID_pitch_ki,  &field_PID_pitch_kd, &field_PID_pitch_max_i,
+          &field_PID_yaw_kp,   &field_PID_yaw_ki,      &field_PID_yaw_kd,  &field_PID_yaw_max_i, &field_PID_pitch_kp, &field_PID_pitch_ki,
+          &field_PID_pitch_kd, &field_PID_pitch_max_i, &field_PID_roll_kp, &field_PID_roll_ki,   &field_PID_roll_kd,  &field_PID_roll_max_i,
       } {}
 
 void FlightScreen::startConfig() {
@@ -142,8 +142,8 @@ void FlightScreen::start() {
     CONTROLS.wheelBtn.subscribe(flightExitButtonListener);
     CONTROLS.wheelBtn.subscribe(telemEnableButtonListener);
 
-    CONTROLS.button3.subscribe(toggleDirPitch);
-    CONTROLS.button4.subscribe(toggleDirRoll);
+    CONTROLS.button3.subscribe(toggleDirRoll);
+    CONTROLS.button4.subscribe(toggleDirPitch);
     CONTROLS.button5.subscribe(toggleDirYaw);
 
     CONTROLS.joy1H.setHalfRange(127);
@@ -168,8 +168,8 @@ void FlightScreen::stop() {
 
     CONTROLS.button1.unsubscribe(radioActivateListener);
     CONTROLS.button2.unsubscribe(motorEngageListener);
-    CONTROLS.button3.unsubscribe(toggleDirPitch);
-    CONTROLS.button4.unsubscribe(toggleDirRoll);
+    CONTROLS.button3.unsubscribe(toggleDirRoll);
+    CONTROLS.button4.unsubscribe(toggleDirPitch);
     CONTROLS.button5.unsubscribe(toggleDirYaw);
 
     link->cancel();
@@ -254,13 +254,13 @@ void FlightScreen::run(TIME_INT_t time) {
         drawInputs();
         drawReceiverStats();
 
-        drawNavMenu("Dir Yaw", "Dir Roll", "Dir Pch", "Config", "Engage", "Disconnect", sustainConnectionAction.getDirectYaw(),
-                    sustainConnectionAction.getDirectRoll(), sustainConnectionAction.getDirectPitch(), false, true);
+        drawNavMenu("Dir Yaw", "Dir Pch", "Dir Roll", "Config", "Engage", "Disconnect", sustainConnectionAction.getDirectYaw(),
+                    sustainConnectionAction.getDirectPitch(), sustainConnectionAction.getDirectRoll(), false, true);
         CONTROLS.button2.setLEDValue(CONTROLS.joy1V.getUnsignedValue() == 0 ? 255 : 0);
         CONTROLS.button1.setLEDValue(200);
-        CONTROLS.button3.setLEDValue(sustainConnectionAction.getDirectPitch() * 200);
-        CONTROLS.button4.setLEDValue(sustainConnectionAction.getDirectRoll() * 200);
-        CONTROLS.button5.setLEDValue(sustainConnectionAction.getDirectYaw() * 200);
+        CONTROLS.button3.setLEDValue(sustainConnectionAction.getDirectRoll() * 255);
+        CONTROLS.button4.setLEDValue(sustainConnectionAction.getDirectPitch() * 255);
+        CONTROLS.button5.setLEDValue(sustainConnectionAction.getDirectYaw() * 255);
         UI.requestDraw();
         break;
     case ENGAGED: {
@@ -276,14 +276,14 @@ void FlightScreen::run(TIME_INT_t time) {
         drawInputs();
         drawReceiverStats();
 
-        drawNavMenu("Dir Yaw", "Dir Roll", "Dir Pch", telemCaptureEnabled ? "Stop" : "Rec", "Disengage", "Disconnect", sustainConnectionAction.getDirectYaw(),
-                    sustainConnectionAction.getDirectRoll(), sustainConnectionAction.getDirectPitch(), true, true);
+        drawNavMenu("Dir Yaw", "Dir Pch", "Dir Roll", telemCaptureEnabled ? "Stop" : "Rec", "Disengage", "Disconnect", sustainConnectionAction.getDirectYaw(),
+                    sustainConnectionAction.getDirectPitch(), sustainConnectionAction.getDirectRoll(), true, true);
 
         uint8_t pmwPhase = abs((microsSinceEpoch() / 10000) % 255 - 128) * 2;
 
-        CONTROLS.button3.setLEDValue(sustainConnectionAction.getDirectPitch() ? 255 - pmwPhase : 0);
-        CONTROLS.button4.setLEDValue(sustainConnectionAction.getDirectRoll() ? pmwPhase : 0);
-        CONTROLS.button5.setLEDValue(sustainConnectionAction.getDirectYaw() ? 255 - pmwPhase : 0);
+        CONTROLS.button3.setLEDValue(sustainConnectionAction.getDirectRoll() * 255);
+        CONTROLS.button4.setLEDValue(sustainConnectionAction.getDirectPitch() * 255);
+        CONTROLS.button5.setLEDValue(sustainConnectionAction.getDirectYaw() * 255);
 
         CONTROLS.button2.setLEDValue(pmwPhase);
         CONTROLS.button1.setLEDValue(255);
@@ -731,7 +731,7 @@ void telemExitButtonListener() {
 }
 
 void telemSerialButtonListener() {
-    if (CONTROLS.button5.isPressed()) {
+    if (CONTROLS.button2.isPressed()) {
         FLIGHT_TELEM_SCREEN.dumpToSerial();
     }
 }
@@ -759,6 +759,16 @@ void telemArrowListener() {
     }
 }
 
+void telemTabButtonListener() {
+    if (CONTROLS.button3.isPressed()) {
+        FLIGHT_TELEM_SCREEN.showPitch();
+    } else if (CONTROLS.button4.isPressed()) {
+        FLIGHT_TELEM_SCREEN.showRoll();
+    } else if (CONTROLS.button5.isPressed()) {
+        FLIGHT_TELEM_SCREEN.showYaw();
+    }
+}
+
 void FlightTelemScreen::scroll(int16_t change) {
     partialValueChange += change % 2;
 
@@ -771,9 +781,15 @@ void FlightTelemScreen::scroll(int16_t change) {
 
     if (change == 0)
         return;
+
+    selection += change;
+
+    requestTelemData();
 }
 
 void FlightTelemScreen::exit() { ROOT_UI.setScreen((Screen *)&FLIGHT_CONFIG_SCREEN); }
+
+void onTelemReceive(pid_response_telemetry_t telem) { FLIGHT_TELEM_SCREEN.onTelemReceived(telem); }
 
 void FlightTelemScreen::start() {
     FDOS_LOG.println("FlightTelemScreen start");
@@ -781,15 +797,26 @@ void FlightTelemScreen::start() {
 
     CONTROLS.button1.setLEDValue(255);
     CONTROLS.button1.subscribe(telemExitButtonListener);
-    CONTROLS.button5.setLEDValue(255);
-    CONTROLS.button5.subscribe(telemSerialButtonListener);
+    CONTROLS.button2.setLEDValue(255);
+    CONTROLS.button2.subscribe(telemSerialButtonListener);
 
-    CONTROLS.button2.setLEDValue(0);
     CONTROLS.button3.setLEDValue(0);
     CONTROLS.button4.setLEDValue(0);
+    CONTROLS.button5.setLEDValue(0);
 
     CONTROLS.arrows.subscribe(telemArrowListener);
     CONTROLS.wheel.subscribe(telemWheelListener);
+
+    telemetryAction.setReceiveListener(onTelemReceive);
+    RADIOTASK.addAction((RadioAction *)&telemetryAction);
+
+    telemResponseData.sampleStartIndex = 0;
+    telemResponseData.totalTelemCount = 0;
+    selection = 0;
+
+    pitchPID = new PID(field_PID_pitch_kp.getValue().f, field_PID_pitch_ki.getValue().f, field_PID_pitch_kd.getValue().f, field_PID_pitch_max_i.getValue().f);
+    yawPID = new PID(field_PID_yaw_kp.getValue().f, field_PID_yaw_ki.getValue().f, field_PID_yaw_kd.getValue().f, field_PID_yaw_max_i.getValue().f);
+    rollPID = new PID(field_PID_roll_kp.getValue().f, field_PID_roll_ki.getValue().f, field_PID_roll_kd.getValue().f, field_PID_roll_max_i.getValue().f);
 
     UI.getDisplay()->setDrawColor(1);
     UI.getDisplay()->drawBox(0, 25, 400, 215);
@@ -797,7 +824,14 @@ void FlightTelemScreen::start() {
 
 void FlightTelemScreen::stop() {
     FDOS_LOG.println("FlightTelemScreen stop");
+
+    RADIOTASK.removeAction((RadioAction *)&telemetryAction);
+
     link->cancel();
+
+    delete pitchPID;
+    delete rollPID;
+    delete yawPID;
 
     CONTROLS.button1.unsubscribe(telemExitButtonListener);
     CONTROLS.button5.unsubscribe(telemSerialButtonListener);
@@ -811,20 +845,78 @@ void FlightTelemScreen::run(TIME_INT_t time) {
         ROOT_UI.setScreen((Screen *)&FLIGHT_SCREEN);
         return;
     }
+
+    CONTROLS.button3.setLEDValue(stateYPR == 2);
+    CONTROLS.button4.setLEDValue(stateYPR == 1);
+    CONTROLS.button5.setLEDValue(stateYPR == 0);
+
     UI.getDisplay()->setDrawColor(1);
-    UI.getDisplay()->drawBox(0, 25, 400, 155);
+    UI.getDisplay()->drawBox(0, 25, 400, 215);
     UI.getDisplay()->setDrawColor(0);
 
-    UI.getDisplay()->setCursor(10, 28);
-    receiver_heartbeat_t hb;
-    sustainConnectionAction.getLastReceivedHB(hb);
-    UI.getDisplay()->setFont(u8g2_font_t0_16b_te);
-    UI.getDisplay()->printf("Rx:%3i%% Tx:%3i%%", hb.snr, (int16_t)RADIO.getSNR() * 10);
-    UI.getDisplay()->setCursor(160, 28);
-    UI.getDisplay()->printf("Vlt:%2.2f Cur:%2.2f(%i)", hb.getBatteryVolts(), hb.getCurrentAmps(), hb.cur);
+    drawTelemScroll(telemResponseData.sampleStartIndex, telemResponseData.totalTelemCount);
+    drawTelemData(telemResponseData.samples, telemResponseData.totalTelemCount - telemResponseData.sampleStartIndex);
 
-    drawESC();
-    drawPID();
+    drawNavMenu("Yaw", "Pitch", "Roll", EMPTY_TITLE, "Serial", "Exit", stateYPR == 0, stateYPR == 1, stateYPR == 2, true, true);
 
     UI.requestDraw();
 }
+
+void FlightTelemScreen::drawTelemScroll(uint16_t index, uint16_t total) { drawVInput(4, 24, 140, 14, index, total, true, false); }
+
+void FlightTelemScreen::drawTelemData(pid_state_t *samples, uint8_t size) {
+    uint16_t y = 25;
+    for (uint8_t i = 0; i < size; i++) {
+        switch (stateYPR) {
+        case 0:
+            FDOS_LOG.print("Yaw:");
+            samples[i].print(&FDOS_LOG, *yawPID, 1000 / 105);
+            break;
+        case 1:
+            FDOS_LOG.print("Pitch:");
+            samples[i].print(&FDOS_LOG, *pitchPID, 1000 / 105);
+            break;
+        case 2:
+            FDOS_LOG.print("Roll:");
+            samples[i].print(&FDOS_LOG, *rollPID, 1000 / 105);
+            break;
+        }
+    }
+}
+
+void FlightTelemScreen::onTelemReceived(pid_response_telemetry_t telem) {
+    telemResponseData = telem;
+    if (transmitAll) {
+        if (telem.totalTelemCount - telem.sampleStartIndex <= 15) {
+            transmitAll = false;
+        } else {
+            selection += 15;
+            requestTelemData();
+        }
+    }
+}
+
+void FlightTelemScreen::dumpToSerial() {
+    transmitAll = true;
+    selection = 0;
+    requestTelemData();
+}
+
+void FlightTelemScreen::toTop() {
+    selection = 0;
+    requestTelemData();
+}
+
+void FlightTelemScreen::toBottom() {
+    if (telemResponseData.totalTelemCount > 15)
+        selection = telemResponseData.totalTelemCount - 15;
+    else
+        selection = 0;
+    requestTelemData();
+}
+
+void FlightTelemScreen::showYaw() { stateYPR = 0; }
+
+void FlightTelemScreen::showPitch() { stateYPR = 1; }
+
+void FlightTelemScreen::showRoll() { stateYPR = 2; }

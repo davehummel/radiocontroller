@@ -4,6 +4,7 @@
 FindReceiverAction radioFindReceiverAction = FindReceiverAction();
 SustainConnectionAction sustainConnectionAction = SustainConnectionAction();
 TransmitCommandAction transmitCommandAction = TransmitCommandAction();
+TelemetryAction telemetryAction = TelemetryAction();
 
 void FindReceiverAction::onStart() {
     FDOS_LOG.println("FindReceiverAction Start");
@@ -205,7 +206,7 @@ uint8_t SustainConnectionAction::onSendReady(uint8_t *data, bool &responseExpect
             return sizeof(config);
         } else {
             responseExpected = true;
-            transmitter_heartbeat_t hb(motorsEngaged, directPitch, directYaw, directRoll,telemEnabled);
+            transmitter_heartbeat_t hb(motorsEngaged, directPitch, directYaw, directRoll, telemEnabled);
             FDOS_LOG.printf("Direct S:%i P:%i Y:%i R:%i\n", hb.PIDMode, hb.isDirectPitch(), hb.isDirectRoll(), hb.isDirectYaw());
             FDOS_LOG.printf("Direct P:%i Y:%i R:%i\n", directPitch, directRoll, directYaw);
             RADIOTASK.mute(TRANSMITTER_HB_ECHO_DELAY_MILLIS);
@@ -272,7 +273,7 @@ void SustainConnectionAction::setESC(uint8_t runtimeSeconds, uint8_t *escVals) {
 }
 
 void SustainConnectionAction::setTelem(bool telemetryEnabled) {
-    telemEnabled=telemetryEnabled;
+    telemEnabled = telemetryEnabled;
     requestSend();
 }
 
@@ -280,7 +281,6 @@ void SustainConnectionAction::setPIDConfig() {
     sharedPIDConfig = false; // returning PID sent state to false to ensure it is resent and verified
     requestSend();
 }
-
 
 void flightInputListener() { transmitCommandAction.changed(); }
 
@@ -337,5 +337,34 @@ uint8_t TransmitCommandAction::onSendReady(uint8_t *data, bool &responseExpected
     flightInput.joyV = CONTROLS.joy2V.getSignedValue();
     flightInput.joyH = CONTROLS.joy2H.getSignedValue();
     msgToBytes(&flightInput, data, sizeof(flight_input_t));
-    return (sizeof(flight_input_t));
+    return sizeof(flight_input_t);
+}
+
+void TelemetryAction::onStart() {}
+
+void TelemetryAction::onStop() {}
+
+void TelemetryAction::requestTelemetry(pid_request_telemetry_t telemRequest) {
+    nextRequest = telemRequest;
+    requestSend();
+}
+
+uint8_t TelemetryAction::onSendReady(uint8_t *data, bool &responseExpected) {
+    responseExpected = true;
+    msgToBytes(&nextRequest, data, sizeof(pid_request_telemetry_t));
+    return sizeof(pid_request_telemetry_t);
+}
+
+void TelemetryAction::onReceive(uint8_t length, uint8_t *data, bool responseExpected) {
+    if (data[0] == PID_TELEMETRY_RESPONSE) {
+        if (receiveListener != NULL) {
+            pid_response_telemetry_t response;
+            msgFromBytes(&response, data, sizeof(pid_response_telemetry_t));
+            FDOS_LOG.printf("Received Telemetry starting at %i elements from a total of %i (len: %i)\n", response.sampleStartIndex, response.totalTelemCount,
+                            response.totalTelemCount - response.sampleStartIndex);
+            receiveListener(response);
+        } else {
+            FDOS_LOG.println("Received telemetetry but no listener was set!");
+        }
+    }
 }

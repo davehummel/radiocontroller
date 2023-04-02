@@ -3,6 +3,7 @@
 
 #include "RadioTask.h"
 #include "VMExecutor.h"
+#include "PID.h"
 
 class FindReceiverAction : RadioAction, RunnableTask {
   private:
@@ -69,15 +70,24 @@ class SustainConnectionAction : RadioAction, RunnableTask {
 
     void setEngineEngaged(bool engaged);
 
-    void setDirectPitch(bool directEnabled) { directPitch = directEnabled; requestSend(); }
-    void setDirectYaw(bool directEnabled) { directYaw = directEnabled; requestSend();}
-    void setDirectRoll(bool directEnabled) { directRoll = directEnabled; requestSend();}
+    void setDirectPitch(bool directEnabled) {
+        directPitch = directEnabled;
+        requestSend();
+    }
+    void setDirectYaw(bool directEnabled) {
+        directYaw = directEnabled;
+        requestSend();
+    }
+    void setDirectRoll(bool directEnabled) {
+        directRoll = directEnabled;
+        requestSend();
+    }
 
     bool getDirectPitch() { return directPitch; }
     bool getDirectYaw() { return directYaw; }
     bool getDirectRoll() { return directRoll; }
 
-    void setESC(uint8_t runtimeSeconds,uint8_t* escVals);
+    void setESC(uint8_t runtimeSeconds, uint8_t *escVals);
     void setTelem(bool telemEnabled);
     void setPIDConfig();
 };
@@ -102,8 +112,29 @@ class TransmitCommandAction : RadioAction, RunnableTask {
     void changed() { inputChanged = true; }
 };
 
+class TelemetryAction : RadioAction {
+  private:
+    pid_request_telemetry_t nextRequest;
+
+    void (*receiveListener)(pid_response_telemetry_t) = NULL;
+
+  public:
+    void onStart();
+
+    void onStop();
+
+    void onReceive(uint8_t length, uint8_t *data, bool responseExpected);
+
+    uint8_t onSendReady(uint8_t *data, bool &responseExpected);
+
+    void requestTelemetry(pid_request_telemetry_t telemRequest);
+
+    void setReceiveListener(void (*listener)(pid_response_telemetry_t)) { receiveListener = listener; }
+};
+
 extern FindReceiverAction radioFindReceiverAction;
 extern SustainConnectionAction sustainConnectionAction;
 extern TransmitCommandAction transmitCommandAction;
+extern TelemetryAction telemetryAction;
 
 #endif
