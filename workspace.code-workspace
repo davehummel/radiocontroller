@@ -6,7 +6,10 @@
 	],
 	"settings": {
 		"files.associations": {
-			"istream": "cpp"
+			"istream": "cpp",
+			"array": "cpp",
+			"initializer_list": "cpp",
+			"utility": "cpp"
 		}
 	}
 }

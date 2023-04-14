@@ -344,10 +344,20 @@ void TelemetryAction::onStart() {}
 
 void TelemetryAction::onStop() {}
 
-void TelemetryAction::requestTelemetry(pid_request_telemetry_t telemRequest) {
-    nextRequest = telemRequest;
-    requestSend();
+bool TelemetryAction::requestTelemetry(pid_request_telemetry_t telemRequest) {
+    TIME_INT_t now = microsSinceEpoch();
+    if (requestActiveTime == 0 || now - requestActiveTime > TELEM_TIMEOUT_MICROS) {
+        nextRequest = telemRequest;
+        requestActiveTime = now;
+        FDOS_LOG.printf("Requesting telemetry on index %i with YPR %i\n",telemRequest.index,telemRequest.telemDimensionYPR);
+        requestSend();
+        return true;
+    }
+    FDOS_LOG.println("Skipping telemetry send due to concurrent sends!");
+    return false;
 }
+
+bool TelemetryAction::busy() { return !(requestActiveTime == 0 || microsSinceEpoch() - requestActiveTime > TELEM_TIMEOUT_MICROS); }
 
 uint8_t TelemetryAction::onSendReady(uint8_t *data, bool &responseExpected) {
     responseExpected = true;
@@ -357,6 +367,7 @@ uint8_t TelemetryAction::onSendReady(uint8_t *data, bool &responseExpected) {
 
 void TelemetryAction::onReceive(uint8_t length, uint8_t *data, bool responseExpected) {
     if (data[0] == PID_TELEMETRY_RESPONSE) {
+        requestActiveTime = 0;
         if (receiveListener != NULL) {
             pid_response_telemetry_t response;
             msgFromBytes(&response, data, sizeof(pid_response_telemetry_t));

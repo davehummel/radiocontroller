@@ -84,7 +84,7 @@ class FlightTelemScreen : Screen, RunnableTask {
   private:
     static const uint16_t BUFFER_SIZE = 12;
 
-    String title = "Flight Telemetry";
+    String title[3] = {"Yaw Telemetry","Pitch Telemetry","Roll Telemetry"};
 
     ScheduledLink *link = NULL;
 
@@ -96,10 +96,10 @@ class FlightTelemScreen : Screen, RunnableTask {
 
     pid_response_telemetry_t telemResponseData;
 
-    void requestTelemData();  
+    bool requestTelemData();  
     
     void drawTelemScroll(uint16_t index,uint16_t total);
-    void drawTelemData(pid_state_t* samples,uint8_t size);
+    void drawTelemData(pid_state_t* samples,uint8_t size,uint16_t sampleDurationMicros);
 
     PID* pitchPID=NULL;
     PID* rollPID=NULL;
@@ -110,9 +110,8 @@ class FlightTelemScreen : Screen, RunnableTask {
     void stop();
     void run(TIME_INT_t time);
 
-    String &getTitle() { return title; }
+    String &getTitle() { return title[stateYPR]; }
 
-    void exit();
     void scroll(int16_t change);
     void toTop();
     void toBottom();

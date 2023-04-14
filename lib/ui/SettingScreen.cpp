@@ -29,18 +29,14 @@ void editSettingArrowListener() {
     }
 }
 
-void editSettingButtonListener() {
-        SETTINGS_SCREEN.startChange();
-}
+void editSettingButtonListener() { SETTINGS_SCREEN.startChange(); }
 
 void changeSettingWheelListener() { SETTINGS_SCREEN.changeValue(CONTROLS.wheel.getDelta()); }
 
 void saveFieldSettingButtonListener() { SETTINGS_SCREEN.saveChange(); }
 void cancelFieldSettingButtonListener() { SETTINGS_SCREEN.cancelChange(); }
 
-void resetFieldSettingButtonListener() {
-        SETTINGS_SCREEN.overwriteWithDefault();
-}
+void resetFieldSettingButtonListener() { SETTINGS_SCREEN.overwriteWithDefault(); }
 
 class : public SettingField {
 
@@ -313,9 +309,9 @@ LabelField radioCodingRateLabel("Coding Rate (5-8) ");
 LabelField radioPowerLabel("Tx Power (2-20 dBm) ");
 LabelField flightPIDLabel("#PID   KP   KD   KI    MAXI");
 LabelField flightYAWLabel("  YAW:  ");
-LabelField flightPIDSpace("   ");
-LabelField flightROLLLabel(" ROLL:  ");
 LabelField flightPITCHLabel("PITCH:  ");
+LabelField flightROLLLabel(" ROLL:  ");
+LabelField flightPIDSpace("   ");
 
 class JoyStatsField : public SettingField {
   private:
@@ -418,15 +414,7 @@ SettingsScreen::SettingsScreen()
           &flightPIDSpace,
           &field_PID_yaw_kd,
           &flightPIDSpace,
-          &field_PID_yaw_max_i, // 79
-          &flightROLLLabel,
-          &field_PID_roll_kp,
-          &flightPIDSpace,
-          &field_PID_roll_ki,
-          &flightPIDSpace,
-          &field_PID_roll_kd,
-          &flightPIDSpace,
-          &field_PID_roll_max_i, // 87
+          &field_PID_yaw_max_i, // 79eereeeesdddddddddddddddddddddddddddddfffffffffffdddddddddddfdffffffdfdfererrrre7777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777df
           &flightPITCHLabel,
           &field_PID_pitch_kp,
           &flightPIDSpace,
@@ -434,7 +422,15 @@ SettingsScreen::SettingsScreen()
           &flightPIDSpace,
           &field_PID_pitch_kd,
           &flightPIDSpace,
-          &field_PID_pitch_max_i, // 95
+          &field_PID_pitch_max_i, // 87
+          &flightROLLLabel,
+          &field_PID_roll_kp,
+          &flightPIDSpace,
+          &field_PID_roll_ki,
+          &flightPIDSpace,
+          &field_PID_roll_kd,
+          &flightPIDSpace,
+          &field_PID_roll_max_i, // 95
       } {}
 
 String SettingsScreen::getField(uint8_t index, bool &editable) {

@@ -115,6 +115,7 @@ class TransmitCommandAction : RadioAction, RunnableTask {
 class TelemetryAction : RadioAction {
   private:
     pid_request_telemetry_t nextRequest;
+    TIME_INT_t requestActiveTime = 0;
 
     void (*receiveListener)(pid_response_telemetry_t) = NULL;
 
@@ -127,7 +128,8 @@ class TelemetryAction : RadioAction {
 
     uint8_t onSendReady(uint8_t *data, bool &responseExpected);
 
-    void requestTelemetry(pid_request_telemetry_t telemRequest);
+    bool requestTelemetry(pid_request_telemetry_t telemRequest);
+    bool busy();
 
     void setReceiveListener(void (*listener)(pid_response_telemetry_t)) { receiveListener = listener; }
 };

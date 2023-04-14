@@ -1,67 +1,82 @@
 #include "Screens.h"
-#include "PowerControl.h"
-#include "RadioTask.h"
-#include "SettingScreen.h"
 #include "FlightScreen.h"
 #include "NavScreen.h"
 #include "PCScreen.h"
+#include "PowerControl.h"
+#include "RadioTask.h"
+#include "SettingScreen.h"
 #include "StatusScreen.h"
-
 
 String EMPTY_TITLE = "";
 
-void drawNavMenu(String b5 , String b4 , String b3 , String bCirc , String b2 , String b1 , bool b5Toggle ,
-                 bool b4Toggle , bool b3Toggle , bool b2Toggle , bool b1Toggle ) {
+void drawNavMenu(String b5, String b4, String b3, String bCirc, String b2, String b1, bool b5Toggle, bool b4Toggle, bool b3Toggle, bool b2Toggle, bool b1Toggle,
+                 bool minimal ) {
     UI.getDisplay()->setDrawColor(1);
-    UI.getDisplay()->drawBox(24, 190, 352, 50);
+    UI.getDisplay()->drawBox(24,  minimal ? 217:190, 352,  minimal ? 14:50);
     UI.getDisplay()->setDrawColor(0);
-    UI.getDisplay()->setFont(u8g2_font_t0_14b_te);
 
-    UI.getDisplay()->drawCircle(40, 215, 10);
-    if (b5Toggle)
-        UI.getDisplay()->drawDisc(40, 215, 7);
+    UI.getDisplay()->setFont(b5Toggle ? u8g2_font_t0_14b_te : u8g2_font_t0_14_te);
+    if (!minimal) {
+        UI.getDisplay()->drawCircle(40, 215, 10);
+        if (b5Toggle)
+            UI.getDisplay()->drawDisc(40, 215, 7);
+    }
     if (b5 != EMPTY_TITLE) {
         uint16_t w = UI.getDisplay()->getStrWidth(b5.c_str());
-        UI.getDisplay()->drawStr(40 - w / 2, 190, b5.c_str());
+        UI.getDisplay()->drawStr(40 - w / 2, minimal ? 217 : 190, b5.c_str());
     }
 
-    UI.getDisplay()->drawCircle(90, 202, 10);
-    if (b4Toggle)
-        UI.getDisplay()->drawDisc(90, 202, 7);
+    UI.getDisplay()->setFont(b4Toggle ? u8g2_font_t0_14b_te : u8g2_font_t0_14_te);
+    if (!minimal) {
+        UI.getDisplay()->drawCircle(90, 202, 10);
+        if (b4Toggle)
+            UI.getDisplay()->drawDisc(90, 202, 7);
+    }
     if (b4 != EMPTY_TITLE) {
         uint16_t w = UI.getDisplay()->getStrWidth(b4.c_str());
         UI.getDisplay()->drawStr(90 - w / 2, 217, b4.c_str());
     }
 
-    UI.getDisplay()->drawCircle(140, 215, 10);
-    if (b3Toggle)
-        UI.getDisplay()->drawDisc(140, 215, 7);
+    UI.getDisplay()->setFont(b3Toggle ? u8g2_font_t0_14b_te : u8g2_font_t0_14_te);
+    if (!minimal) {
+        UI.getDisplay()->drawCircle(140, 215, 10);
+        if (b3Toggle)
+            UI.getDisplay()->drawDisc(140, 215, 7);
+    }
     if (b3 != EMPTY_TITLE) {
         uint16_t w = UI.getDisplay()->getStrWidth(b3.c_str());
-        UI.getDisplay()->drawStr(140 - w / 2, 190, b3.c_str());
+        UI.getDisplay()->drawStr(140 - w / 2, minimal ? 217 : 190, b3.c_str());
     }
 
-    UI.getDisplay()->drawCircle(290, 202, 10);
-    if (b2Toggle)
-        UI.getDisplay()->drawDisc(290, 202, 7);
+    UI.getDisplay()->setFont(b2Toggle ? u8g2_font_t0_14b_te : u8g2_font_t0_14_te);
+    if (!minimal) {
+        UI.getDisplay()->drawCircle(290, 202, 10);
+        if (b2Toggle)
+            UI.getDisplay()->drawDisc(290, 202, 7);
+    }
     if (b2 != EMPTY_TITLE) {
         uint16_t w = UI.getDisplay()->getStrWidth(b2.c_str());
         UI.getDisplay()->drawStr(290 - w / 2, 217, b2.c_str());
     }
 
-    UI.getDisplay()->drawCircle(340, 215, 10);
-    if (b1Toggle)
-        UI.getDisplay()->drawDisc(340, 215, 7);
+    UI.getDisplay()->setFont(b1Toggle ? u8g2_font_t0_14b_te : u8g2_font_t0_14_te);
+    if (!minimal) {
+        UI.getDisplay()->drawCircle(340, 215, 10);
+        if (b1Toggle)
+            UI.getDisplay()->drawDisc(340, 215, 7);
+    }
     if (b1 != EMPTY_TITLE) {
         uint16_t w = UI.getDisplay()->getStrWidth(b1.c_str());
-        UI.getDisplay()->drawStr(340 - w / 2, 190, b1.c_str());
+        UI.getDisplay()->drawStr(340 - w / 2, minimal ? 217 : 190, b1.c_str());
     }
 
-    UI.getDisplay()->drawDisc(200, 212, 6);
-    UI.getDisplay()->drawCircle(200, 212, 15);
-    UI.getDisplay()->drawCircle(200, 212, 20);
+    if (!minimal) {
+        UI.getDisplay()->drawDisc(200, 212, 6);
+        UI.getDisplay()->drawCircle(200, 212, 15);
+        UI.getDisplay()->drawCircle(200, 212, 20);
+    }
     if (bCirc != EMPTY_TITLE) {
-        UI.getDisplay()->drawStr(226, 194, bCirc.c_str());
+        UI.getDisplay()->drawStr(226, minimal ? 217 : 194, bCirc.c_str());
     }
 }
 void drawXYInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t xVal, uint16_t yVal, uint16_t valMax, bool printVals) {
@@ -98,7 +113,7 @@ void drawHInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uin
     }
 }
 
-void drawVInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uint16_t val, uint16_t valMax, bool printVals, bool printLeftSide ) {
+void drawVInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uint16_t val, uint16_t valMax, bool printVals, bool printLeftSide) {
     UI.getDisplay()->setDrawColor(0);
     UI.getDisplay()->drawBox(topX, topY, width, size);
     UI.getDisplay()->setDrawColor(1);
@@ -112,9 +127,6 @@ void drawVInput(uint16_t topX, uint16_t topY, uint16_t size, uint16_t width, uin
         UI.getDisplay()->setFontDirection(0);
     }
 }
-
-
-
 
 void navEnableButtonListener() {
     if (CONTROLS.wheelBtn.isPressed()) {
@@ -145,4 +157,3 @@ void navActionButtonListener() {
         return;
     }
 }
-
